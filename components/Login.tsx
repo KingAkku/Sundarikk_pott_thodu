@@ -12,34 +12,32 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const handleGoogleSignIn = async () => {
     setLoading('google');
     setError('');
-    // Simulate a network request
+    // Simulate API call
     setTimeout(() => {
-      const mockGoogleUser: Player = {
-        id: 'user_google_123',
-        name: 'Jane Doe',
+      const mockUser: Player = {
+        id: `google-${Date.now()}`,
+        name: 'Demo User',
         score: 0,
-        emailVerified: true,
         isAnonymous: false,
+        emailVerified: true,
       };
-      onLogin(mockGoogleUser);
-      setLoading(null);
-    }, 1000);
+      onLogin(mockUser);
+    }, 500);
   };
   
   const handleAnonymousSignIn = async () => {
     setLoading('anonymous');
     setError('');
-    // Simulate a network request
+    // Simulate API call
     setTimeout(() => {
-      const mockGuestUser: Player = {
-        id: 'user_guest_456',
-        name: 'Guest Player',
+      const mockUser: Player = {
+        id: `guest-${Date.now()}`,
+        name: `Guest-${String(Date.now()).slice(-5)}`,
         score: 0,
-        emailVerified: false,
         isAnonymous: true,
+        emailVerified: false,
       };
-      onLogin(mockGuestUser);
-      setLoading(null);
+      onLogin(mockUser);
     }, 500);
   };
 
