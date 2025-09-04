@@ -1,15 +1,18 @@
 import React, { useEffect } from 'react';
 import { GoogleAuthProvider, PhoneAuthProvider } from 'firebase/auth';
-import * as firebaseui from 'firebaseui';
-import 'firebaseui/dist/firebaseui.css';
 import { auth } from '../firebaseConfig';
+
+// By loading firebaseui via a script tag in index.html, it becomes available on the window object.
+// We declare it here to let TypeScript know it exists globally.
+declare const firebaseui: any;
 
 const Login: React.FC = () => {
   useEffect(() => {
+    // Use the globally available firebaseui
     const ui = firebaseui.auth.AuthUI.getInstance() || new firebaseui.auth.AuthUI(auth);
     
-    const uiConfig: firebaseui.auth.Config = {
-      signInSuccessUrl: '/', // On success, redirect to the app root
+    const uiConfig = {
+      signInSuccessUrl: '/', // On success, onAuthStateChanged will handle the user state
       signInOptions: [
         GoogleAuthProvider.PROVIDER_ID,
         {
@@ -19,14 +22,13 @@ const Login: React.FC = () => {
             size: 'invisible',
             badge: 'bottomright'
           },
-          defaultCountry: 'US', // Optional, sets a default country code
+          defaultCountry: 'US',
         }
       ],
-      // Do not show account chooser
       credentialHelper: firebaseui.auth.CredentialHelper.NONE,
       callbacks: {
         signInSuccessWithAuthResult: () => {
-          // Prevents immediate redirect, allowing onAuthStateChanged to handle it
+          // Return false to prevent redirect, allowing onAuthStateChanged in App.tsx to handle it.
           return false; 
         }
       }

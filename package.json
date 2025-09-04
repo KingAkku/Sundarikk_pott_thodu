@@ -11,8 +11,7 @@
   "dependencies": {
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "firebase": "^12.2.1",
-    "firebaseui": "^6.1.0"
+    "firebase": "^12.2.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
