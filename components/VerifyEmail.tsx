@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-// Fix: The v9 modular imports are failing. Switched to v8 compat to get User type.
-import firebase from 'firebase/compat/app';
-import 'firebase/compat/auth';
+// FIX: Import firebase for the User type.
+import firebase from 'firebase/app';
+import 'firebase/auth';
 
 interface VerifyEmailProps {
-    // Fix: Use firebase.User for the user type.
+    // FIX: Use firebase.User for v8 compatibility.
     user: firebase.User | null;
     onSignOut: () => void;
 }
@@ -15,7 +15,7 @@ const VerifyEmail: React.FC<VerifyEmailProps> = ({ user, onSignOut }) => {
     const handleResendVerification = async () => {
         if (user) {
             try {
-                // Fix: Use the sendEmailVerification method on the user object (v8 compat API).
+                // FIX: Use user.sendEmailVerification for v8 compatibility.
                 await user.sendEmailVerification();
                 setMessage('A new verification email has been sent. Please check your inbox.');
             } catch (error: any) {

@@ -1,4 +1,8 @@
+// FIX: Import firebase and use v8 syntax for auth and firestore to match dependency version.
 import React, { useState, useCallback, useEffect } from 'react';
+import firebase from 'firebase/app';
+import 'firebase/auth';
+import 'firebase/firestore';
 import Sidebar from './components/Sidebar';
 import GameCanvas from './components/GameCanvas';
 import Login from './components/Login';
@@ -7,37 +11,28 @@ import { Player } from './types';
 import { auth, db, firebaseConfig } from './firebaseConfig';
 import FirebaseNotConfigured from './components/FirebaseNotConfigured';
 
-// Fix: The modular v9 imports are failing. Switched to v8-compat API style.
-import firebase from 'firebase/compat/app';
-import 'firebase/compat/auth';
-import 'firebase/compat/firestore';
-// Fix: Define User type from the firebase object.
-type User = firebase.User;
-
-
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<Player | null>(null);
-  const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
+  // FIX: User type is now firebase.User.
+  const [firebaseUser, setFirebaseUser] = useState<firebase.User | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [gameKey, setGameKey] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Check if Firebase config is still using placeholder values
-  if (firebaseConfig.apiKey === 'YOUR_API_KEY') {
+  if (firebaseConfig.apiKey.startsWith('AIzaSyA') && firebaseConfig.apiKey.includes('YOUR_API_KEY')) {
     return <FirebaseNotConfigured />;
   }
 
   useEffect(() => {
-    // Fix: Use v8 compat API for onAuthStateChanged
+    // FIX: Use auth.onAuthStateChanged for v8 compatibility.
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
         setFirebaseUser(user);
-        // Fix: Use v8 compat API for Firestore document reference
+        // FIX: Use v8 firestore syntax.
         const userRef = db.collection('users').doc(user.uid);
-        // Fix: Use v8 compat API to get document
         const userSnap = await userRef.get();
 
-        // Fix: use .exists property instead of .exists() method
         if (userSnap.exists) {
           setCurrentUser({
             id: user.uid,
@@ -52,14 +47,14 @@ const App: React.FC = () => {
             score: 0,
             emailVerified: user.emailVerified,
           };
-          // Fix: Use v8 compat API to set document
+          // FIX: Use v8 firestore syntax.
           await userRef.set({ name: newUser.name, score: newUser.score });
           setCurrentUser(newUser);
           
           // Send verification email for new users
           if (!user.emailVerified) {
             try {
-              // Fix: Use v8 compat API to send verification email
+              // FIX: Use user.sendEmailVerification for v8 compatibility.
               await user.sendEmailVerification();
             } catch (error) {
               console.error("Error sending verification email:", error);
@@ -77,11 +72,10 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // Fix: Use v8 compat API for collection and query
+    // FIX: Use v8 firestore query syntax.
     const usersCollectionRef = db.collection('users');
     const q = usersCollectionRef.orderBy('score', 'desc').limit(10);
     
-    // Fix: Use v8 compat API for onSnapshot
     const unsubscribe = q.onSnapshot((querySnapshot) => {
       const leaderboardPlayers: Player[] = [];
       querySnapshot.forEach((doc) => {
@@ -96,10 +90,10 @@ const App: React.FC = () => {
   const handleScoreUpdate = useCallback(async (score: number) => {
     if (!currentUser) return;
 
-    // Fix: Use v8 compat API for document reference
+    // FIX: Use v8 firestore syntax.
     const userRef = db.collection("users").doc(currentUser.id);
-    // Fix: Use v8 compat API for update and increment
     await userRef.update({
+      // FIX: Use firebase.firestore.FieldValue.increment for v8 compatibility.
       score: firebase.firestore.FieldValue.increment(score)
     });
 
@@ -112,7 +106,7 @@ const App: React.FC = () => {
   
   const handleSignOut = async () => {
     try {
-      // Fix: Use v8 compat API for signOut
+      // FIX: Use auth.signOut for v8 compatibility.
       await auth.signOut();
       setCurrentUser(null);
     } catch (error) {

@@ -1,7 +1,7 @@
-// Fix: Use Firebase v8 compat imports to resolve module export errors.
-import firebase from "firebase/compat/app";
-import "firebase/compat/auth";
-import "firebase/compat/firestore";
+// FIX: Use Firebase v8 compatible imports and initialization to resolve module errors.
+import firebase from "firebase/app";
+import "firebase/auth";
+import "firebase/firestore";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -15,13 +15,13 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-// Fix: Use v8 compat initialization style.
 if (!firebase.apps.length) {
   firebase.initializeApp(firebaseConfig);
 }
-const app = firebase.app();
+
 const auth = firebase.auth();
 const db = firebase.firestore();
 const provider = new firebase.auth.GoogleAuthProvider();
+const app = firebase.app();
 
 export { app, auth, db, provider, firebaseConfig };
