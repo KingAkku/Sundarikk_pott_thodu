@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { auth, provider, firebase } from '../firebaseConfig';
+import { auth, provider } from '../firebaseConfig';
 
 const Login: React.FC = () => {
   const [guestName, setGuestName] = useState('');
@@ -10,22 +10,14 @@ const Login: React.FC = () => {
 
   const errorMessageFromCode = (code?: string) => {
     switch (code) {
-      case 'auth/popup-closed-by-user':
-        return 'Popup closed before completing sign in.';
-      case 'auth/cancelled-popup-request':
-        return 'Another sign-in attempt was in progress.';
-      case 'auth/popup-blocked':
-        return 'Popup blocked. Retrying with redirect…';
-      case 'auth/operation-not-allowed':
-        return 'This sign-in method is disabled in your Firebase project.';
-      case 'auth/network-request-failed':
-        return 'Network error. Check your connection and try again.';
-      case 'auth/invalid-email':
-        return 'The email address is not valid.';
-      case 'auth/unauthorized-continue-uri':
-        return 'This domain is not authorized for email sign-in. Please check your Firebase console settings.';
-      default:
-        return 'An unexpected error occurred. Please try again.';
+      case 'auth/popup-closed-by-user': return 'Popup closed before completing sign in.';
+      case 'auth/cancelled-popup-request': return 'Another sign-in attempt was in progress.';
+      case 'auth/popup-blocked': return 'Popup blocked. Retrying with redirect…';
+      case 'auth/operation-not-allowed': return 'This sign-in method is disabled in your Firebase project.';
+      case 'auth/network-request-failed': return 'Network error. Check your connection and try again.';
+      case 'auth/invalid-email': return 'The email address is not valid.';
+      case 'auth/unauthorized-continue-uri': return 'This domain is not authorized for email sign-in. Please check your Firebase console settings.';
+      default: return 'An unexpected error occurred. Please try again.';
     }
   };
 
@@ -37,7 +29,6 @@ const Login: React.FC = () => {
       provider.setCustomParameters({ prompt: 'select_account' });
       await auth.signInWithPopup(provider);
     } catch (err: any) {
-      console.error('Error signing in with Google:', err);
       const code = err?.code as string | undefined;
       if (code === 'auth/popup-blocked') {
         try {
@@ -66,7 +57,7 @@ const Login: React.FC = () => {
     setSuccessMessage('');
     try {
       const actionCodeSettings = {
-        url: window.location.href, // Redirect back to the same page
+        url: window.location.href,
         handleCodeInApp: true,
       };
       await auth.sendSignInLinkToEmail(email, actionCodeSettings);
@@ -109,21 +100,27 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col justify-center items-center p-4">
-      <div className="w-full max-w-sm">
-        <div className="bg-white shadow-2xl rounded-2xl p-8 transform hover:scale-105 transition-transform duration-300">
-          <h1 className="text-3xl font-bold text-slate-800 text-center mb-2">Pin the Dot</h1>
-          <p className="text-center text-slate-500 mb-8">A game of precision and fun!</p>
-
+    <div className="min-h-screen bg-[#F5F1E9] flex justify-center items-center p-4">
+      <div className="w-full max-w-4xl grid md:grid-cols-2 shadow-2xl rounded-2xl overflow-hidden">
+        <div className="bg-[#0D1B1E] p-10 md:p-12 flex flex-col justify-center text-[#F5F1E9] relative">
+            <div className="absolute inset-0 opacity-10">
+                 <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="a" patternUnits="userSpaceOnUse" width="40" height="40" patternTransform="scale(2) rotate(45)"><rect x="0" y="0" width="100%" height="100%" fill="none"/><path d="M1-5l-2 10m6 4l2-10m-8 2l-2 10m6 4l2-10M-3 5l-2 10m6 4l2-10m-8 2l-2 10m6 4l2-10" stroke-width="1" stroke="#2A4747" fill="none"/></pattern></defs><rect width="800%" height="800%" transform="translate(0,0)" fill="url(#a)"/></svg>
+            </div>
+          <h1 className="text-5xl font-extrabold tracking-tighter mb-4 z-10">Pin the Dot</h1>
+          <p className="text-lg text-[#F5F1E9] opacity-80 z-10">A game of speed, precision, and fun. Sign in to save your score and hit the leaderboard.</p>
+        </div>
+        
+        <div className="bg-white p-10">
+          <h2 className="text-2xl font-bold text-[#0D1B1E] mb-6">Get Started</h2>
           <div className="space-y-4">
             <button
               onClick={handleGoogleSignIn}
               disabled={!!loading}
-              className="w-full flex items-center justify-center bg-white border border-gray-300 text-slate-700 font-semibold py-2 px-4 rounded-lg focus:outline-none hover:bg-gray-50 transition-colors duration-300 shadow-sm disabled:opacity-75 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center bg-white border border-gray-300 text-[#0D1B1E] font-semibold py-3 px-4 rounded-lg focus:outline-none hover:bg-gray-50 transition-colors duration-300 shadow-sm disabled:opacity-75 disabled:cursor-not-allowed"
             >
               {loading === 'google' ? (
                 <>
-                  <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-slate-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                  <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-[#0D1B1E]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                   Signing in...
                 </>
               ) : (
@@ -134,69 +131,28 @@ const Login: React.FC = () => {
               )}
             </button>
             
-            <div className="space-y-3 pt-2">
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email"
-                disabled={!!loading}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50"
-              />
-              <button
-                onClick={handleEmailLinkSignIn}
-                disabled={!!loading}
-                className="w-full flex items-center justify-center bg-slate-700 hover:bg-slate-800 text-white font-bold py-2 px-4 rounded-lg focus:outline-none transition-all duration-300 shadow-md disabled:opacity-75 disabled:cursor-not-allowed"
-              >
-                {loading === 'email' ? (
-                   <>
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                    Sending Link...
-                  </>
-                ) : (
-                  'Continue with Email'
-                )}
-              </button>
-            </div>
-
             <div className="relative my-6">
               <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-300"></div></div>
               <div className="relative flex justify-center text-sm"><span className="bg-white px-2 text-gray-500">or</span></div>
             </div>
 
             <div className="space-y-3">
-              <input
-                type="text"
-                value={guestName}
-                onChange={(e) => setGuestName(e.target.value)}
-                placeholder="Enter your name"
-                disabled={!!loading}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50"
-              />
-              <button
-                onClick={handleAnonymousSignIn}
-                disabled={!!loading}
-                className="w-full flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline-indigo transition-all duration-300 transform hover:scale-105 shadow-lg disabled:opacity-75 disabled:cursor-not-allowed"
-              >
-                {loading === 'anonymous' ? (
-                  <>
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                    Entering...
-                  </>
-                ) : (
-                  'Play as Guest'
-                )}
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Enter your email" disabled={!!loading} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#B55B3E] disabled:bg-slate-50 text-[#0D1B1E]"/>
+              <button onClick={handleEmailLinkSignIn} disabled={!!loading} className="w-full flex items-center justify-center bg-[#2A4747] hover:bg-[#1f3535] text-white font-bold py-3 px-4 rounded-lg focus:outline-none transition-all duration-300 shadow-md disabled:opacity-75 disabled:cursor-not-allowed">
+                {loading === 'email' ? (<><svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Sending Link...</>) : ('Continue with Email')}
+              </button>
+            </div>
+
+            <div className="space-y-3 pt-2">
+              <input type="text" value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder="Enter your name" disabled={!!loading} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#B55B3E] disabled:bg-slate-50 text-[#0D1B1E]"/>
+              <button onClick={handleAnonymousSignIn} disabled={!!loading} className="w-full flex items-center justify-center bg-[#B55B3E] hover:bg-[#a14f34] text-white font-bold py-3 px-4 rounded-lg focus:outline-none transition-all duration-300 transform hover:scale-105 shadow-lg disabled:opacity-75 disabled:cursor-not-allowed">
+                {loading === 'anonymous' ? (<><svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Entering...</>) : ('Play as Guest')}
               </button>
             </div>
           </div>
-
           {error && <p className="text-red-500 text-sm text-center mt-4">{error}</p>}
           {successMessage && <p className="text-green-600 text-sm text-center mt-4">{successMessage}</p>}
         </div>
-
-        <p className="text-center text-xs text-slate-400 mt-6">
-          Sign in with Google or Email to save your score permanently.
-        </p>
       </div>
     </div>
   );

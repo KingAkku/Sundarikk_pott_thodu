@@ -15,12 +15,16 @@ const App: React.FC = () => {
   const [gameKey, setGameKey] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // If you really want a guard here, make it robust to avoid false positives.
-  const looksLikePlaceholder =
-    !firebaseConfig?.apiKey ||
-    /YOUR_|REPLACE_ME|PROJECT_ID|YOUR_API_KEY/.test(JSON.stringify(firebaseConfig));
+  // Enhanced check to be more robust against incomplete or placeholder configurations.
+  // It verifies that essential keys are present and not just default template values.
+  const isFirebaseConfigInvalid =
+    !firebaseConfig ||
+    !firebaseConfig.apiKey ||
+    !firebaseConfig.authDomain ||
+    !firebaseConfig.projectId ||
+    /YOUR_|REPLACE_ME|PROJECT_ID|YOUR_API_KEY/i.test(JSON.stringify(firebaseConfig));
 
-  if (looksLikePlaceholder) {
+  if (isFirebaseConfigInvalid) {
     return <FirebaseNotConfigured />;
   }
 
@@ -179,8 +183,8 @@ const App: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen w-screen justify-center items-center bg-slate-900">
-        <p className="text-white text-xl">Loading...</p>
+      <div className="flex h-screen w-screen justify-center items-center bg-[#0D1B1E]">
+        <p className="text-[#F5F1E9] text-xl">Loading...</p>
       </div>
     );
   }
@@ -194,7 +198,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col md:flex-row h-screen w-screen bg-slate-900 text-white overflow-hidden">
+    <div className="flex flex-col md:flex-row h-screen w-screen bg-[#0D1B1E] text-white overflow-hidden">
       <Sidebar players={players} currentUser={currentUser} onNewGame={handleNewGame} />
       <main className="flex-1 bg-slate-100">
         <GameCanvas key={gameKey} onScoreUpdate={handleScoreUpdate} />
