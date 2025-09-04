@@ -4,20 +4,10 @@ import GameCanvas from './components/GameCanvas';
 import Login from './components/Login';
 import VerifyEmail from './components/VerifyEmail';
 import { Player } from './types';
-import { auth, db } from './firebaseConfig';
-// FIX: Import Firebase v9 modular functions for Firestore.
-import {
-  doc,
-  getDoc,
-  setDoc,
-  collection,
-  query,
-  orderBy,
-  limit,
-  onSnapshot,
-  updateDoc,
-  increment,
-} from 'firebase/firestore';
+import { auth, db, firebaseConfig } from './firebaseConfig'; // Import firebaseConfig
+import FirebaseNotConfigured from './components/FirebaseNotConfigured'; // Import the new component
+// FIX: Import firebase for v8 compatibility, specifically for FieldValue.
+import firebase from 'firebase/app';
 
 
 const App: React.FC = () => {
@@ -26,14 +16,19 @@ const App: React.FC = () => {
   const [gameKey, setGameKey] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
+  // Check if Firebase config is using placeholder values
+  if (firebaseConfig.apiKey === 'YOUR_API_KEY') {
+    return <FirebaseNotConfigured />;
+  }
+
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
-        // FIX: Use v9 doc() and getDoc()
-        const userRef = doc(db, 'users', user.uid);
-        const userSnap = await getDoc(userRef);
+        // FIX: Use v8 namespaced API to get a document reference and fetch data.
+        const userRef = db.collection('users').doc(user.uid);
+        const userSnap = await userRef.get();
 
-        if (userSnap.exists()) {
+        if (userSnap.exists) {
           setCurrentUser({
             id: user.uid,
             emailVerified: user.emailVerified,
@@ -47,8 +42,8 @@ const App: React.FC = () => {
             score: 0,
             emailVerified: user.emailVerified,
           };
-          // FIX: Use v9 setDoc()
-          await setDoc(userRef, { name: newUser.name, score: newUser.score });
+          // FIX: Use v8 namespaced API to set document data.
+          await userRef.set({ name: newUser.name, score: newUser.score });
           setCurrentUser(newUser);
           
           // Send verification email for new users
@@ -70,10 +65,10 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // FIX: Use v9 collection() and query()
-    const usersCollection = collection(db, 'users');
-    const q = query(usersCollection, orderBy('score', 'desc'), limit(10));
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+    // FIX: Use v8 namespaced API to query the collection and listen for snapshots.
+    const usersCollection = db.collection('users');
+    const q = usersCollection.orderBy('score', 'desc').limit(10);
+    const unsubscribe = q.onSnapshot((querySnapshot) => {
       const leaderboardPlayers: Player[] = [];
       querySnapshot.forEach((doc) => {
         leaderboardPlayers.push({ id: doc.id, emailVerified: false, ...doc.data() } as Player);
@@ -87,11 +82,11 @@ const App: React.FC = () => {
   const handleScoreUpdate = useCallback(async (score: number) => {
     if (!currentUser) return;
 
-    // FIX: Use v9 doc()
-    const userRef = doc(db, "users", currentUser.id);
-    // FIX: Use v9 updateDoc() and increment() to resolve error on line 75
-    await updateDoc(userRef, {
-      score: increment(score)
+    // FIX: Use v8 namespaced API to get a document reference.
+    const userRef = db.collection("users").doc(currentUser.id);
+    // FIX: Use v8 namespaced API to update the score using FieldValue.increment.
+    await userRef.update({
+      score: firebase.firestore.FieldValue.increment(score)
     });
 
     setCurrentUser(prevUser => prevUser ? { ...prevUser, score: prevUser.score + score } : null);

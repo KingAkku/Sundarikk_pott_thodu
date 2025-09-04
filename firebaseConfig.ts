@@ -1,7 +1,7 @@
-// FIX: Update imports and initialization to use Firebase v9 modular SDK.
-import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+// FIX: Reverted to Firebase v8 compatible imports and initialization to resolve module errors.
+import firebase from 'firebase/app';
+import 'firebase/auth';
+import 'firebase/firestore';
 
 // IMPORTANT: Replace the placeholder values below with your actual
 // Firebase project configuration. You can find this in your
@@ -16,11 +16,11 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-// FIX: Use Firebase v9 initialization method.
-const app = initializeApp(firebaseConfig);
-// FIX: Use Firebase v9 modular SDK to get auth, firestore, and provider.
-const auth = getAuth(app);
-const db = getFirestore(app);
-const provider = new GoogleAuthProvider();
+// FIX: Use Firebase v8 initialization method, which is compatible with older SDKs.
+const app = !firebase.apps.length ? firebase.initializeApp(firebaseConfig) : firebase.app();
+// FIX: Use Firebase v8 namespaced API to get auth, firestore, and provider.
+const auth = firebase.auth();
+const db = firebase.firestore();
+const provider = new firebase.auth.GoogleAuthProvider();
 
-export { app, auth, db, provider };
+export { app, auth, db, provider, firebaseConfig }; // Export firebaseConfig

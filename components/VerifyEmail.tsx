@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-// FIX: Import User type from firebase/auth for v9 compatibility. This resolves the error on line 5.
-import type { User } from 'firebase/auth';
+// FIX: Import firebase for v8 User type. This resolves the error on line 5.
+import type firebase from 'firebase/app';
 
 interface VerifyEmailProps {
-    // FIX: Use the imported User type.
-    user: User | null;
+    // FIX: Use the v8 User type from the firebase namespace.
+    user: firebase.User | null;
     onSignOut: () => void;
 }
 
