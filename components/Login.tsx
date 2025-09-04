@@ -2,43 +2,40 @@ import React, { useState } from 'react';
 import { Player } from '../types';
 
 interface LoginProps {
-  onLogin: (user: Player) => void;
+    onLogin: (user: Player) => void;
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState<'google' | 'anonymous' | null>(null);
 
-  const handleGoogleSignIn = async () => {
-    setLoading('google');
+  const handleSignIn = (method: 'google' | 'anonymous') => {
+    setLoading(method);
     setError('');
-    // Simulate API call
+
+    // Simulate an async login process
     setTimeout(() => {
-      const mockUser: Player = {
-        id: `google-${Date.now()}`,
-        name: 'Demo User',
-        score: 0,
-        isAnonymous: false,
-        emailVerified: true,
-      };
-      onLogin(mockUser);
-    }, 500);
-  };
-  
-  const handleAnonymousSignIn = async () => {
-    setLoading('anonymous');
-    setError('');
-    // Simulate API call
-    setTimeout(() => {
-      const mockUser: Player = {
-        id: `guest-${Date.now()}`,
-        name: `Guest-${String(Date.now()).slice(-5)}`,
-        score: 0,
-        isAnonymous: true,
-        emailVerified: false,
-      };
-      onLogin(mockUser);
-    }, 500);
+        let user: Player;
+        if (method === 'google') {
+            user = {
+                id: 'user_google_' + Date.now(),
+                name: 'Google User',
+                score: 0,
+                emailVerified: true,
+                isAnonymous: false,
+            };
+        } else {
+            user = {
+                id: 'user_guest_' + Date.now(),
+                name: 'Guest',
+                score: 0,
+                emailVerified: false,
+                isAnonymous: true,
+            };
+        }
+        onLogin(user);
+        setLoading(null);
+    }, 750); // 750ms delay to show the spinner
   };
 
   return (
@@ -48,7 +45,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   
         <div className="flex flex-col gap-4">
           <button
-            onClick={handleGoogleSignIn}
+            onClick={() => handleSignIn('google')}
             disabled={!!loading}
             className="w-full flex items-center justify-center px-6 py-3 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors disabled:opacity-70 disabled:cursor-not-allowed font-medium"
           >
@@ -65,7 +62,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             )}
           </button>
           <button
-            onClick={handleAnonymousSignIn}
+            onClick={() => handleSignIn('anonymous')}
             disabled={!!loading}
             className="w-full flex items-center justify-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
           >
