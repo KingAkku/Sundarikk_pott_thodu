@@ -1,6 +1,12 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
-import { onAuthStateChanged, signOut, sendEmailVerification, User } from 'firebase/auth';
+import { 
+  onAuthStateChanged, 
+  signOut, 
+  sendEmailVerification, 
+  User,
+  isSignInWithEmailLink,
+  signInWithEmailLink
+} from 'firebase/auth';
 import {
   doc,
   getDoc,
@@ -34,6 +40,27 @@ const App: React.FC = () => {
   }
 
   useEffect(() => {
+    // Handle the email link sign-in flow on page load
+    (async () => {
+      if (isSignInWithEmailLink(auth, window.location.href)) {
+        let email = window.localStorage.getItem('emailForSignIn');
+        if (!email) {
+          email = window.prompt('Please provide your email for confirmation');
+        }
+        if (email) {
+            try {
+                // This signs the user in and will trigger onAuthStateChanged
+                await signInWithEmailLink(auth, email, window.location.href);
+                window.localStorage.removeItem('emailForSignIn');
+                window.history.replaceState({}, document.title, window.location.pathname);
+            } catch (error) {
+                console.error("Error signing in with email link:", error);
+                // The user will not be logged in, and onAuthStateChanged will handle the null user state.
+            }
+        }
+      }
+    })();
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setFirebaseUser(user);
@@ -50,14 +77,15 @@ const App: React.FC = () => {
           // New user
           const newUser: Player = {
             id: user.uid,
-            name: user.displayName || 'Anonymous',
+            name: user.displayName || user.email?.split('@')[0] || 'Anonymous',
             score: 0,
             emailVerified: user.emailVerified,
           };
           await setDoc(userRef, { name: newUser.name, score: newUser.score });
           setCurrentUser(newUser);
           
-          // Send verification email for new users
+          // Send verification email for new users (e.g., from Google Sign-In if not verified)
+          // Users from email link are verified by nature of the sign-in method.
           if (!user.emailVerified) {
             try {
               await sendEmailVerification(user);

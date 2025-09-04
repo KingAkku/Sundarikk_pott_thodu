@@ -1,6 +1,5 @@
-
-import React from 'react';
-import { signInWithPopup } from 'firebase/auth';
+import React, { useState } from 'react';
+import { signInWithPopup, sendSignInLinkToEmail } from 'firebase/auth';
 import { auth, provider } from '../firebaseConfig';
 
 const GoogleIcon: React.FC = () => (
@@ -12,16 +11,44 @@ const GoogleIcon: React.FC = () => (
     </svg>
 );
 
-
 const Login: React.FC = () => {
+  const [email, setEmail] = useState('');
+  const [emailSent, setEmailSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleGoogleSignIn = async () => {
     try {
       await signInWithPopup(auth, provider);
-      // Auth state change will be handled by the listener in App.tsx
     } catch (error) {
       console.error("Error signing in with Google: ", error);
       alert("Failed to sign in. Please try again.");
+    }
+  };
+
+  const handleEmailSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) return;
+
+    setLoading(true);
+    setError('');
+    setEmailSent(false);
+
+    const actionCodeSettings = {
+      url: window.location.href,
+      handleCodeInApp: true,
+    };
+
+    try {
+      await sendSignInLinkToEmail(auth, email, actionCodeSettings);
+      window.localStorage.setItem('emailForSignIn', email);
+      setEmailSent(true);
+      setEmail('');
+    } catch (err: any) {
+      console.error("Error sending sign-in link: ", err);
+      setError("Failed to send link. Please check the email and try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -31,14 +58,52 @@ const Login: React.FC = () => {
         <div className="bg-white shadow-2xl rounded-2xl p-8 transform hover:scale-105 transition-transform duration-300">
           <h1 className="text-3xl font-bold text-slate-800 text-center mb-2">Pin the Dot</h1>
           <p className="text-center text-slate-500 mb-8">A game of precision and fun!</p>
-          
+
           <button
             onClick={handleGoogleSignIn}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline-indigo transition-all duration-300 transform hover:translate-y-[-2px] flex items-center justify-center shadow-lg"
+            className="w-full bg-white hover:bg-gray-50 border border-gray-300 text-slate-700 font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline-indigo transition-all duration-300 transform hover:translate-y-[-2px] flex items-center justify-center shadow-md"
           >
             <GoogleIcon />
             Sign in with Google
           </button>
+          
+          <div className="relative flex py-5 items-center">
+            <div className="flex-grow border-t border-gray-300"></div>
+            <span className="flex-shrink mx-4 text-gray-400 text-sm">OR</span>
+            <div className="flex-grow border-t border-gray-300"></div>
+          </div>
+
+          {emailSent ? (
+            <p className="text-center text-green-600 font-medium p-4 bg-green-50 rounded-lg">
+              ✅ A sign-in link has been sent to your email. Please check your inbox to continue.
+            </p>
+          ) : (
+            <form onSubmit={handleEmailSignIn}>
+              <label htmlFor="email" className="sr-only">Email address</label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                className="appearance-none rounded-lg relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                placeholder="Enter your email to sign in"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={loading}
+              />
+              <button
+                type="submit"
+                disabled={loading || !email}
+                className="mt-4 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline-indigo transition-all duration-300 transform hover:translate-y-[-2px] flex items-center justify-center shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? 'Sending...' : 'Continue with Email'}
+              </button>
+            </form>
+          )}
+
+          {error && <p className="text-sm text-red-600 mt-2 text-center">{error}</p>}
+
           <p className="text-center text-xs text-slate-400 mt-6">
             Sign in to save your score and join the leaderboard.
           </p>
