@@ -51,6 +51,34 @@ const App: React.FC = () => {
     return <FirebaseNotConfigured />;
   }
 
+  // Effect to catch unhandled promise rejections, which can cause the "circular structure" error.
+  useEffect(() => {
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      // Prevent the browser's default handling of the rejection, which might
+      // try to log the raw error object and crash on circular structures.
+      event.preventDefault();
+
+      const reason = event.reason;
+      if (reason instanceof FirebaseError) {
+        // Specifically look for codes that indicate a connection problem
+        if (reason.code === 'unavailable' || reason.message.includes('Could not reach Cloud Firestore backend')) {
+          console.error('Caught unhandled Firestore connection error:', { code: reason.code, message: reason.message });
+          setError("Could not connect to the game services. Please check your internet connection and ensure your Firestore database is set up correctly.");
+        }
+      } else {
+        // Handle other types of unhandled rejections to prevent crashes
+        console.error('Caught unhandled generic rejection:', reason);
+        setError("An unexpected error occurred. Please try refreshing the page.");
+      }
+    };
+    
+    window.addEventListener('unhandledrejection', handleRejection);
+    
+    return () => {
+      window.removeEventListener('unhandledrejection', handleRejection);
+    };
+  }, []);
+
   useEffect(() => {
     // Auth state listener refactored to explicitly create plain objects for state,
     // preventing circular reference errors while preserving all functionality.
