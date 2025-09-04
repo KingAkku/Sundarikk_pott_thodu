@@ -12,6 +12,11 @@ const firebaseConfig = {
   measurementId: 'G-53SQWMGJMX',
 };
 
+// IMPORTANT: For production applications, it's highly recommended to restrict your API key.
+// You can do this in the Google Cloud Console by adding your web app's domain
+// to the "Website restrictions" for this API key.
+// This helps prevent unauthorized use of your Firebase project.
+
 const app = !firebase.apps.length ? firebase.initializeApp(firebaseConfig) : firebase.app();
 const auth = firebase.auth();
 const db = firebase.firestore();

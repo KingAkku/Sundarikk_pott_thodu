@@ -25,6 +25,35 @@ const App: React.FC = () => {
   }
 
   useEffect(() => {
+    // This effect handles the email sign-in link if present in the URL.
+    const handleEmailLinkSignIn = async () => {
+      if (auth.isSignInWithEmailLink(window.location.href)) {
+        let email = window.localStorage.getItem('emailForSignIn');
+        if (!email) {
+          // This can happen if the user opens the link on a different device.
+          // In a real app, you would prompt the user for their email.
+          console.error("Could not complete sign-in: email not found in local storage.");
+          window.history.replaceState(null, '', window.location.pathname);
+          return;
+        }
+
+        try {
+          // This will trigger the onAuthStateChanged listener below
+          await auth.signInWithEmailLink(email, window.location.href);
+        } catch (error) {
+          console.error("Error signing in with email link:", error);
+        } finally {
+          window.localStorage.removeItem('emailForSignIn');
+          // Clean up URL to avoid the logic running again on refresh
+          window.history.replaceState(null, '', window.location.pathname);
+        }
+      }
+    };
+
+    handleEmailLinkSignIn();
+  }, []); // Runs only on initial mount.
+
+  useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       try {
         if (user) {
@@ -165,7 +194,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="flex h-screen w-screen bg-slate-900 text-white overflow-hidden">
+    <div className="flex flex-col md:flex-row h-screen w-screen bg-slate-900 text-white overflow-hidden">
       <Sidebar players={players} currentUser={currentUser} onNewGame={handleNewGame} />
       <main className="flex-1 bg-slate-100">
         <GameCanvas key={gameKey} onScoreUpdate={handleScoreUpdate} />

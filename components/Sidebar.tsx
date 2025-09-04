@@ -21,8 +21,8 @@ const Sidebar: React.FC<SidebarProps> = ({ players, currentUser, onNewGame }) =>
   const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
 
   return (
-    <aside className="w-80 bg-[#1E1B3A] p-6 flex flex-col shadow-2xl h-full">
-      <div className="mb-8">
+    <aside className="w-full md:w-80 bg-[#1E1B3A] p-4 md:p-6 flex flex-col shadow-2xl md:h-full">
+      <div className="mb-6">
         <h1 className="text-3xl font-extrabold text-white tracking-tight">Pin the Dot</h1>
         <p className="text-[#9E78CF] font-medium">Leaderboard</p>
       </div>
@@ -49,7 +49,7 @@ const Sidebar: React.FC<SidebarProps> = ({ players, currentUser, onNewGame }) =>
         })}
       </div>
 
-      <div className="mt-8">
+      <div className="mt-6">
         <button
           onClick={onNewGame}
           className="w-full bg-[#2CB67D] hover:bg-[#259c6b] text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#1E1B3A] focus:ring-[#2CB67D] transition-all duration-300 transform hover:scale-105 shadow-xl"
