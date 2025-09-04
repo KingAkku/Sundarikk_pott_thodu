@@ -29,7 +29,6 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   // Helper function to safely check for placeholder strings in config values
-  // without using JSON.stringify, which can fail on circular structures.
   const hasPlaceholderValues = (config: object): boolean => {
     for (const value of Object.values(config)) {
       if (typeof value === 'string' && /YOUR_|REPLACE_ME|PROJECT_ID|YOUR_API_KEY/i.test(value)) {
@@ -39,7 +38,6 @@ const App: React.FC = () => {
     return false;
   };
 
-  // Enhanced check to be more robust against incomplete or placeholder configurations.
   const isFirebaseConfigInvalid =
     !firebaseConfig ||
     !firebaseConfig.apiKey ||
@@ -51,94 +49,90 @@ const App: React.FC = () => {
     return <FirebaseNotConfigured />;
   }
 
-  // Effect to catch unhandled promise rejections, which can cause the "circular structure" error.
+  /**
+   * Fetches an existing player profile from Firestore or creates a new one for a new user.
+   * @param user The Firebase authenticated user object.
+   * @returns A promise that resolves to a Player profile object.
+   */
+  const getPlayerProfile = async (user: User): Promise<Player> => {
+    const userRef = doc(db, 'users', user.uid);
+    const userSnap = await getDoc(userRef);
+
+    if (userSnap.exists()) {
+      const data = userSnap.data();
+      return {
+        id: user.uid,
+        name: data.name ?? 'Guest',
+        score: data.score ?? 0,
+        emailVerified: user.emailVerified,
+        isAnonymous: user.isAnonymous,
+      };
+    } else {
+      const providerId = user.providerData?.[0]?.providerId ?? null;
+      let name = 'Guest';
+      if (providerId === 'google.com' && user.displayName) {
+        name = user.displayName;
+      } else if (user.isAnonymous) {
+        name = 'Guest Player';
+      } else if (user.email) {
+        name = user.email.split('@')[0];
+      }
+
+      const newPlayerProfile: Player = {
+        id: user.uid,
+        name,
+        score: 0,
+        emailVerified: user.emailVerified,
+        isAnonymous: user.isAnonymous,
+      };
+      
+      // Don't save guest user profiles to the database
+      if (!newPlayerProfile.isAnonymous) {
+        await setDoc(userRef, { name: newPlayerProfile.name, score: newPlayerProfile.score, isAnonymous: false });
+
+        if (user.email && !user.emailVerified) {
+          sendEmailVerification(user).catch((err) => {
+            console.error("Failed to send verification email.", err instanceof FirebaseError ? { code: err.code, message: err.message } : err);
+          });
+        }
+      }
+      return newPlayerProfile;
+    }
+  };
+  
+  // Global error handler to catch unhandled promise rejections
   useEffect(() => {
     const handleRejection = (event: PromiseRejectionEvent) => {
-      // Prevent the browser's default handling of the rejection, which might
-      // try to log the raw error object and crash on circular structures.
+      // Prevent the browser's default handler which can crash the app
       event.preventDefault();
 
-      const reason = event.reason;
-      if (reason instanceof FirebaseError) {
-        // Specifically look for codes that indicate a connection problem
-        if (reason.code === 'unavailable' || reason.message.includes('Could not reach Cloud Firestore backend')) {
-          console.error('Caught unhandled Firestore connection error:', { code: reason.code, message: reason.message });
-          setError("Could not connect to the game services. Please check your internet connection and ensure your Firestore database is set up correctly.");
-        }
-      } else {
-        // Handle other types of unhandled rejections to prevent crashes
-        console.error('Caught unhandled generic rejection:', reason);
-        setError("An unexpected error occurred. Please try refreshing the page.");
+      let code = 'unknown';
+      let message = 'An unexpected error occurred.';
+
+      if (event.reason instanceof FirebaseError) {
+        code = event.reason.code;
+        message = event.reason.message;
+      } else if (event.reason instanceof Error) {
+        message = event.reason.message;
       }
+
+      console.error('Unhandled Promise Rejection:', { code, message });
+      setError("Could not connect to services. Please check your connection and that Firestore is enabled.");
     };
-    
+
     window.addEventListener('unhandledrejection', handleRejection);
-    
+
     return () => {
       window.removeEventListener('unhandledrejection', handleRejection);
     };
   }, []);
 
   useEffect(() => {
-    // Auth state listener refactored to explicitly create plain objects for state,
-    // preventing circular reference errors while preserving all functionality.
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       try {
         if (user) {
-          const userRef = doc(db, 'users', user.uid);
-          const userSnap = await getDoc(userRef);
-
-          let playerProfile: Player;
-
-          if (userSnap.exists()) {
-            // Existing user: create a plain object from Firestore data
-            const data = userSnap.data();
-            playerProfile = {
-              id: user.uid,
-              name: data.name ?? 'Guest',
-              score: data.score ?? 0,
-              emailVerified: user.emailVerified,
-              isAnonymous: user.isAnonymous,
-            };
-          } else {
-            // New user: determine name and create a new plain object
-            const providerId = user.providerData?.[0]?.providerId ?? null;
-            let name = 'Guest';
-
-            if (providerId === 'google.com' && user.displayName) {
-              name = user.displayName;
-            } else if (user.isAnonymous) {
-              name = 'Guest Player';
-            } else if (user.email) {
-              name = user.email.split('@')[0];
-            }
-
-            playerProfile = {
-              id: user.uid,
-              name,
-              score: 0,
-              emailVerified: user.emailVerified,
-              isAnonymous: user.isAnonymous,
-            };
-
-            // Persist new user to Firestore using a plain object
-            const newUserDocData = { name: playerProfile.name, score: playerProfile.score };
-            await setDoc(userRef, newUserDocData);
-
-            // Send verification email in the background without blocking UI
-            if (!user.isAnonymous && user.email && !user.emailVerified) {
-              sendEmailVerification(user).catch((error) => {
-                 let code = 'unknown';
-                 let message = 'Error sending verification email.';
-                 if (error instanceof FirebaseError) {
-                     code = error.code;
-                     message = error.message;
-                 }
-                 console.error('Error sending verification email:', { code, message });
-              });
-            }
-          }
-          setCurrentUser(playerProfile);
+          const profile = await getPlayerProfile(user);
+          setCurrentUser(profile);
         } else {
           setCurrentUser(null);
         }
@@ -162,13 +156,11 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // If there's already an error, don't try to fetch the leaderboard.
-    if (error) return;
+    if (error || !currentUser) return; // Don't fetch leaderboard if there's an error or no user
 
     const usersCollectionRef = collection(db, 'users');
     const q = query(usersCollectionRef, orderBy('score', 'desc'), limit(10));
 
-    // Leaderboard listener refactored to use .map for a more concise functional approach.
     const unsubscribe = onSnapshot(
       q,
       (querySnapshot) => {
@@ -176,10 +168,10 @@ const App: React.FC = () => {
           const data = doc.data();
           return {
             id: doc.id,
-            emailVerified: false, // Not needed for leaderboard display
+            emailVerified: false, 
             name: data?.name ?? 'Guest',
             score: data?.score ?? 0,
-            isAnonymous: data?.isAnonymous ?? false,
+            isAnonymous: data?.isAnonymous ?? false, // Ensure consistency
           };
         });
         setPlayers(leaderboardPlayers);
@@ -197,16 +189,14 @@ const App: React.FC = () => {
     );
 
     return () => unsubscribe();
-  }, [error]);
+  }, [error, currentUser]);
 
   const handleScoreUpdate = useCallback(
     async (score: number) => {
       if (!currentUser) return;
 
-      // UI feedback
       setCurrentUser((prev) => (prev ? { ...prev, score: prev.score + score } : prev));
 
-      // Only persist for non-anonymous users
       if (currentUser.isAnonymous) return;
 
       try {
@@ -222,7 +212,7 @@ const App: React.FC = () => {
             message = error.message;
         }
         console.error('Failed to persist score:', { code, message });
-        // Optional: rollback local increment on failure
+        // Revert local score update on failure
         setCurrentUser((prev) => (prev ? { ...prev, score: prev.score - score } : prev));
       }
     },

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Player } from '../types';
 
 interface SidebarProps {
@@ -18,7 +18,10 @@ const TrophyIcon: React.FC<{ rank: number }> = ({ rank }) => {
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ players, currentUser, onNewGame }) => {
-  const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
+  const sortedPlayers = useMemo(() => 
+    [...players].sort((a, b) => b.score - a.score), 
+    [players]
+  );
 
   return (
     <aside className="w-full md:w-80 bg-[#0D1B1E] text-[#F5F1E9] p-4 md:p-6 flex flex-col shadow-2xl md:h-full">
