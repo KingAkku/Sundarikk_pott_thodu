@@ -7,25 +7,6 @@ interface GameCanvasProps {
 
 const IMAGE_SIZE = { width: 150, height: 225 };
 const IMAGE_URL = '/sundari.svg';
-const GAME_DURATION = 5; // seconds
-
-const animationStyles = `
-  @keyframes pop-in {
-      0% { transform: scale(0) translate(-50%, -50%); opacity: 0; }
-      50% { transform: scale(1.2) translate(-50%, -50%); opacity: 1; }
-      100% { transform: scale(1) translate(-50%, -50%); opacity: 1; }
-  }
-  .animate-pop-in {
-      animation: pop-in 0.3s ease-out forwards;
-  }
-  @keyframes iris-in {
-      from { clip-path: circle(150% at 50% 50%); }
-      to { clip-path: circle(0% at 50% 50%); }
-  }
-  .animate-iris-in {
-      animation: iris-in 1.2s ease-in-out forwards;
-  }
-`;
 
 const ScorePopupItem: React.FC<{ popup: ScorePopup }> = ({ popup }) => {
     const [visible, setVisible] = useState(false);
@@ -52,17 +33,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ onScoreUpdate }) => {
   const [scorePopups, setScorePopups] = useState<ScorePopup[]>([]);
   const [isGameOver, setIsGameOver] = useState<boolean>(false);
   const [showShade, setShowShade] = useState<boolean>(true);
-  const [timeLeft, setTimeLeft] = useState(GAME_DURATION);
   const canvasRef = useRef<HTMLDivElement>(null);
-  // FIX: Replaced NodeJS.Timeout with ReturnType<typeof setInterval> for browser compatibility.
-  const timerIdRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const clearTimer = useCallback(() => {
-    if (timerIdRef.current) {
-      clearInterval(timerIdRef.current);
-      timerIdRef.current = null;
-    }
-  }, []);
 
   const startNewGame = useCallback(() => {
     if (canvasRef.current) {
@@ -71,52 +42,31 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ onScoreUpdate }) => {
       const newY = Math.random() * (height - IMAGE_SIZE.height);
       setImagePosition({ x: newX, y: newY });
 
+      // Reset game state for a new round
       setClick(null);
       setIsGameOver(false);
       setScorePopups([]);
-      setTimeLeft(GAME_DURATION);
-      clearTimer();
       
+      // Trigger the "eyes covering" animation
       setShowShade(true);
       setTimeout(() => {
         setShowShade(false);
-      }, 1200);
+      }, 1200); // Duration of the animation must match CSS
     }
-  }, [clearTimer]);
+  }, []);
 
   useEffect(() => {
     startNewGame();
     window.addEventListener('resize', startNewGame);
-    return () => {
-        window.removeEventListener('resize', startNewGame);
-        clearTimer();
-    }
-  }, [startNewGame, clearTimer]);
-
-  useEffect(() => {
-    if (!isGameOver && !showShade) {
-      timerIdRef.current = setInterval(() => {
-        setTimeLeft(prevTime => {
-          if (prevTime <= 1) {
-            clearTimer();
-            setIsGameOver(true);
-            return 0;
-          }
-          return prevTime - 1;
-        });
-      }, 1000);
-    } else {
-      clearTimer();
-    }
-
-    return clearTimer;
-  }, [isGameOver, showShade, clearTimer]);
+    return () => window.removeEventListener('resize', startNewGame);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleCanvasClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Prevent clicking during animation or after the single click has been made
     if (isGameOver || showShade || !canvasRef.current || !imagePosition) return;
 
     setIsGameOver(true);
-    clearTimer();
 
     const rect = canvasRef.current.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
@@ -125,6 +75,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ onScoreUpdate }) => {
     const newClick = { id: Date.now(), x: clickX, y: clickY };
     setClick(newClick);
 
+    // Scoring Logic
     const isDirectHit =
       clickX >= imagePosition.x &&
       clickX <= imagePosition.x + IMAGE_SIZE.width &&
@@ -135,15 +86,18 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ onScoreUpdate }) => {
     if (isDirectHit) {
       score = 10;
     } else {
+      // Define forehead area for partial points
       const foreheadCenterX = imagePosition.x + IMAGE_SIZE.width / 2;
-      const foreheadCenterY = imagePosition.y + IMAGE_SIZE.height * 0.2;
+      const foreheadCenterY = imagePosition.y + IMAGE_SIZE.height * 0.2; // Top 20% of the image height
       
       const distance = Math.sqrt(
         Math.pow(clickX - foreheadCenterX, 2) + Math.pow(clickY - foreheadCenterY, 2)
       );
 
+      // Give partial points if click is reasonably close to the forehead
       const maxDistance = IMAGE_SIZE.width * 0.75;
       if (distance < maxDistance) {
+        // Closer clicks get more points, up to 8
         score = Math.max(0, Math.floor(8 * (1 - distance / maxDistance)));
       }
     }
@@ -165,17 +119,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ onScoreUpdate }) => {
       onClick={handleCanvasClick}
     >
         {showShade && (
-            <div className="absolute inset-0 bg-black animate-iris-in z-30 pointer-events-none"></div>
+            <div className="absolute inset-0 bg-black animate-shading z-30 pointer-events-none"></div>
         )}
       
-      {!showShade && !isGameOver && (
-        <div className="absolute top-4 right-4 bg-black bg-opacity-50 px-4 py-2 rounded-lg pointer-events-none z-20">
-            <span className={`text-4xl font-mono font-bold transition-colors duration-300 ${timeLeft <= 2 ? 'text-red-500' : 'text-white'}`}>
-                0:0{timeLeft}
-            </span>
-        </div>
-      )}
-
       {imagePosition && (
         <img
           src={IMAGE_URL}
@@ -203,7 +149,27 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ onScoreUpdate }) => {
          <ScorePopupItem key={popup.id} popup={popup} />
       ))}
 
-      <style>{animationStyles}</style>
+      <style>{`
+        @keyframes pop-in {
+            0% { transform: scale(0) translate(-50%, -50%); opacity: 0; }
+            50% { transform: scale(1.2) translate(-50%, -50%); opacity: 1; }
+            100% { transform: scale(1) translate(-50%, -50%); opacity: 1; }
+        }
+        .animate-pop-in {
+            animation: pop-in 0.3s ease-out forwards;
+        }
+        @keyframes shading {
+            0% {
+                box-shadow: inset 0 0 0 200vw rgba(0,0,0,0);
+            }
+            100% {
+                box-shadow: inset 0 0 0 0 rgba(0,0,0,1);
+            }
+        }
+        .animate-shading {
+            animation: shading 1.2s ease-in-out forwards;
+        }
+      `}</style>
     </div>
   );
 };

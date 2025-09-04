@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
-import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
+// import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -18,12 +18,16 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 // Initialize Firebase App Check to protect Firebase services from abuse.
-// IMPORTANT: Replace the string below with your own reCAPTCHA site key
-// from your Firebase project's App Check settings.
+// NOTE: App Check has been temporarily disabled to resolve startup errors.
+// The placeholder 'YOUR_RECAPTCHA_SITE_KEY' must be replaced with a real
+// site key from your Firebase project's App Check settings. Once you have the
+// key, uncomment the code below and the import statement at the top of the file.
+/*
 initializeAppCheck(app, {
   provider: new ReCaptchaEnterpriseProvider('YOUR_RECAPTCHA_SITE_KEY'),
   isTokenAutoRefreshEnabled: true,
 });
+*/
 
 const auth = getAuth(app);
 const db = getFirestore(app);
