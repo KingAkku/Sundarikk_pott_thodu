@@ -6,9 +6,7 @@ interface GameCanvasProps {
 }
 
 const IMAGE_SIZE = { width: 150, height: 225 };
-// In a real application, this image would be in the `public/sundari.png` folder.
-// We're using a seeded random image as a placeholder to ensure it's consistent.
-const IMAGE_URL = 'https://picsum.photos/seed/sundari/150/225';
+const IMAGE_URL = '/sundari.png';
 
 const ScorePopupItem: React.FC<{ popup: ScorePopup }> = ({ popup }) => {
     const [visible, setVisible] = useState(false);
