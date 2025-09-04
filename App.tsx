@@ -3,9 +3,7 @@ import {
   onAuthStateChanged, 
   signOut, 
   sendEmailVerification, 
-  User,
-  isSignInWithEmailLink,
-  signInWithEmailLink
+  User
 } from 'firebase/auth';
 import {
   doc,
@@ -42,7 +40,6 @@ const App: React.FC = () => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        // User is signed in. Process their data.
         setFirebaseUser(user);
         const userRef = doc(db, 'users', user.uid);
         const userSnap = await getDoc(userRef);
@@ -55,16 +52,27 @@ const App: React.FC = () => {
           } as Player);
         } else {
           // New user
+          const providerId = user.providerData[0]?.providerId;
+          let name = 'Anonymous';
+
+          if (providerId === 'google.com' && user.displayName) {
+            name = user.displayName;
+          } else if (providerId === 'phone' && user.phoneNumber) {
+            name = `User ****${user.phoneNumber.slice(-4)}`;
+          } else if (user.email) {
+            name = user.email.split('@')[0];
+          }
+
           const newUser: Player = {
             id: user.uid,
-            name: user.displayName || user.email?.split('@')[0] || 'Anonymous',
+            name: name,
             score: 0,
             emailVerified: user.emailVerified,
           };
           await setDoc(userRef, { name: newUser.name, score: newUser.score });
           setCurrentUser(newUser);
           
-          if (!user.emailVerified) {
+          if (providerId !== 'phone' && !user.emailVerified) {
             try {
               await sendEmailVerification(user);
             } catch (error) {
@@ -72,42 +80,12 @@ const App: React.FC = () => {
             }
           }
         }
-        setIsLoading(false);
       } else {
-        // No user is signed in. Check if it's an email link sign-in attempt.
-        if (isSignInWithEmailLink(auth, window.location.href)) {
-          let email = window.localStorage.getItem('emailForSignIn');
-          if (!email) {
-            email = window.prompt('Please provide your email for confirmation');
-          }
-          if (email) {
-            try {
-              // This will sign the user in and trigger onAuthStateChanged again with a user object.
-              // We don't set loading to false here; we wait for the next auth state change.
-              await signInWithEmailLink(auth, email, window.location.href);
-              window.localStorage.removeItem('emailForSignIn');
-              window.history.replaceState({}, document.title, window.location.pathname);
-            } catch (error) {
-              console.error("Error signing in with email link:", error);
-              window.localStorage.removeItem('emailForSignIn');
-              // Sign-in failed. Set user to null and stop loading.
-              setCurrentUser(null);
-              setFirebaseUser(null);
-              setIsLoading(false);
-            }
-          } else {
-            // No email provided for link sign-in. We are not logged in. Stop loading.
-            setCurrentUser(null);
-            setFirebaseUser(null);
-            setIsLoading(false);
-          }
-        } else {
-          // Not an email sign-in link, and no user. We are not logged in. Stop loading.
-          setCurrentUser(null);
-          setFirebaseUser(null);
-          setIsLoading(false);
-        }
+        // No user is signed in.
+        setCurrentUser(null);
+        setFirebaseUser(null);
       }
+      setIsLoading(false);
     });
 
     return () => unsubscribe();
@@ -152,6 +130,8 @@ const App: React.FC = () => {
     }
   };
 
+  const isPhoneUser = firebaseUser?.providerData[0]?.providerId === 'phone';
+
   if (isLoading) {
     return (
       <div className="flex h-screen w-screen justify-center items-center bg-slate-900">
@@ -164,7 +144,7 @@ const App: React.FC = () => {
     return <Login />;
   }
   
-  if (!currentUser.emailVerified) {
+  if (!currentUser.emailVerified && !isPhoneUser) {
     return <VerifyEmail user={firebaseUser} onSignOut={handleSignOut} />;
   }
 
