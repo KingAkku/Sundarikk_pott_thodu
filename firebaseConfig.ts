@@ -1,4 +1,4 @@
-// FIX: Reverted to Firebase v8 compatible imports and initialization to resolve module errors.
+// FIX: Using Firebase v8 compatible imports and initialization
 import firebase from 'firebase/app';
 import 'firebase/auth';
 import 'firebase/firestore';
@@ -16,9 +16,7 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-// FIX: Use Firebase v8 initialization method, which is compatible with older SDKs.
-const app = !firebase.apps.length ? firebase.initializeApp(firebaseConfig) : firebase.app();
-// FIX: Use Firebase v8 namespaced API to get auth, firestore, and provider.
+const app = firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 const provider = new firebase.auth.GoogleAuthProvider();

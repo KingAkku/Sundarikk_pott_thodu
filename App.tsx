@@ -4,14 +4,20 @@ import GameCanvas from './components/GameCanvas';
 import Login from './components/Login';
 import VerifyEmail from './components/VerifyEmail';
 import { Player } from './types';
-import { auth, db, firebaseConfig } from './firebaseConfig'; // Import firebaseConfig
-import FirebaseNotConfigured from './components/FirebaseNotConfigured'; // Import the new component
-// FIX: Import firebase for v8 compatibility, specifically for FieldValue.
+import { auth, db, firebaseConfig } from './firebaseConfig';
+import FirebaseNotConfigured from './components/FirebaseNotConfigured';
+// FIX: Using Firebase v8 compatible imports for types and side-effects.
 import firebase from 'firebase/app';
+import 'firebase/auth';
+import 'firebase/firestore';
+
+// FIX: Using Firebase v8 compatible type for User.
+type User = firebase.User;
 
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<Player | null>(null);
+  const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [gameKey, setGameKey] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -22,9 +28,11 @@ const App: React.FC = () => {
   }
 
   useEffect(() => {
+    // FIX: Using Firebase v8 auth.onAuthStateChanged method.
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
-        // FIX: Use v8 namespaced API to get a document reference and fetch data.
+        setFirebaseUser(user);
+        // FIX: Using Firebase v8 firestore syntax.
         const userRef = db.collection('users').doc(user.uid);
         const userSnap = await userRef.get();
 
@@ -42,13 +50,14 @@ const App: React.FC = () => {
             score: 0,
             emailVerified: user.emailVerified,
           };
-          // FIX: Use v8 namespaced API to set document data.
+          // FIX: Using Firebase v8 firestore syntax.
           await userRef.set({ name: newUser.name, score: newUser.score });
           setCurrentUser(newUser);
           
           // Send verification email for new users
           if (!user.emailVerified) {
             try {
+              // FIX: Using Firebase v8 user.sendEmailVerification method.
               await user.sendEmailVerification();
             } catch (error) {
               console.error("Error sending verification email:", error);
@@ -57,6 +66,7 @@ const App: React.FC = () => {
         }
       } else {
         setCurrentUser(null);
+        setFirebaseUser(null);
       }
       setIsLoading(false);
     });
@@ -65,9 +75,9 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // FIX: Use v8 namespaced API to query the collection and listen for snapshots.
-    const usersCollection = db.collection('users');
-    const q = usersCollection.orderBy('score', 'desc').limit(10);
+    // FIX: Using Firebase v8 firestore syntax.
+    const usersCollectionRef = db.collection('users');
+    const q = usersCollectionRef.orderBy('score', 'desc').limit(10);
     const unsubscribe = q.onSnapshot((querySnapshot) => {
       const leaderboardPlayers: Player[] = [];
       querySnapshot.forEach((doc) => {
@@ -82,10 +92,10 @@ const App: React.FC = () => {
   const handleScoreUpdate = useCallback(async (score: number) => {
     if (!currentUser) return;
 
-    // FIX: Use v8 namespaced API to get a document reference.
+    // FIX: Using Firebase v8 firestore syntax.
     const userRef = db.collection("users").doc(currentUser.id);
-    // FIX: Use v8 namespaced API to update the score using FieldValue.increment.
     await userRef.update({
+      // FIX: Using Firebase v8 FieldValue.increment.
       score: firebase.firestore.FieldValue.increment(score)
     });
 
@@ -98,6 +108,7 @@ const App: React.FC = () => {
   
   const handleSignOut = async () => {
     try {
+      // FIX: Using Firebase v8 auth.signOut method.
       await auth.signOut();
       setCurrentUser(null);
     } catch (error) {
@@ -118,7 +129,7 @@ const App: React.FC = () => {
   }
   
   if (!currentUser.emailVerified) {
-    return <VerifyEmail user={auth.currentUser} onSignOut={handleSignOut} />;
+    return <VerifyEmail user={firebaseUser} onSignOut={handleSignOut} />;
   }
 
   return (
