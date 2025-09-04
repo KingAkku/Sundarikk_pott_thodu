@@ -1,27 +1,60 @@
 import React, { useState } from 'react';
-import { auth, provider } from '../firebaseConfig';
+import { auth, provider, firebase } from '../firebaseConfig';
 
 const Login: React.FC = () => {
   const [guestName, setGuestName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState<'google' | 'anonymous' | null>(null);
 
+  const errorMessageFromCode = (code?: string) => {
+    switch (code) {
+      case 'auth/popup-closed-by-user':
+        return 'Popup closed before completing sign in.';
+      case 'auth/cancelled-popup-request':
+        return 'Another sign-in attempt was in progress.';
+      case 'auth/popup-blocked':
+        return 'Popup blocked. Retrying with redirect…';
+      case 'auth/operation-not-allowed':
+        return 'This sign-in method is disabled in your Firebase project.';
+      case 'auth/network-request-failed':
+        return 'Network error. Check your connection and try again.';
+      default:
+        return 'Failed to sign in. Please try again.';
+    }
+  };
+
   const handleGoogleSignIn = async () => {
     setLoading('google');
     setError('');
     try {
+      // Prompt account chooser each time
+      provider.setCustomParameters({ prompt: 'select_account' });
       await auth.signInWithPopup(provider);
       // onAuthStateChanged in App.tsx will handle the rest
-    } catch (err) {
-      console.error("Error signing in with Google:", err);
-      setError('Failed to sign in with Google. Please try again.');
+    } catch (err: any) {
+      console.error('Error signing in with Google:', err);
+      const code = err?.code as string | undefined;
+
+      if (code === 'auth/popup-blocked') {
+        // Fallback to redirect if popups are blocked
+        try {
+          await auth.signInWithRedirect(provider);
+          return;
+        } catch (redirErr) {
+          console.error('Redirect sign-in failed:', redirErr);
+          setError(errorMessageFromCode((redirErr as any)?.code));
+        }
+      } else {
+        setError(errorMessageFromCode(code));
+      }
     } finally {
       setLoading(null);
     }
   };
 
   const handleAnonymousSignIn = async () => {
-    if (guestName.trim() === '') {
+    const name = guestName.trim();
+    if (name === '') {
       setError('Please enter a name to play as a guest.');
       return;
     }
@@ -29,17 +62,21 @@ const Login: React.FC = () => {
     setError('');
     try {
       const userCredential = await auth.signInAnonymously();
-      if (userCredential.user) {
-        await userCredential.user.updateProfile({
-          displayName: guestName.trim(),
+      const user = userCredential.user;
+      if (user) {
+        // updateProfile exists on compat user
+        await user.updateProfile({ displayName: name }).catch((e) => {
+          // Non-fatal; proceed anyway
+          console.warn('Failed to set displayName for anonymous user:', e);
         });
       }
-      // onAuthStateChanged in App.tsx will handle navigation
-    } catch (err) {
-      console.error("Error signing in anonymously:", err);
-      setError('Failed to sign in as guest. Please try again.');
+    } catch (err: any) {
+      console.error('Error signing in anonymously:', err);
+      setError(err?.code === 'auth/operation-not-allowed'
+        ? 'Anonymous sign-in is disabled for this Firebase project.'
+        : 'Failed to sign in as guest. Please try again.');
     } finally {
-        setLoading(null);
+      setLoading(null);
     }
   };
 
@@ -77,7 +114,7 @@ const Login: React.FC = () => {
                 </>
               )}
             </button>
-            
+
             <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-gray-300"></div>
@@ -102,21 +139,23 @@ const Login: React.FC = () => {
                 className="w-full flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline-indigo transition-all duration-300 transform hover:scale-105 shadow-lg disabled:opacity-75 disabled:cursor-not-allowed"
               >
                 {loading === 'anonymous' ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Entering...
-                </>
-              ) : (
-                'Play as Guest'
-              )}
+                  <>
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Entering...
+                  </>
+                ) : (
+                  'Play as Guest'
+                )}
               </button>
             </div>
           </div>
+
           {error && <p className="text-red-500 text-sm text-center mt-4">{error}</p>}
         </div>
+
         <p className="text-center text-xs text-slate-400 mt-6">
           Sign in with Google to save your score permanently.
         </p>
