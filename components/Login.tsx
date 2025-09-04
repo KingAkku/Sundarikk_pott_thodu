@@ -1,58 +1,46 @@
 import React, { useState } from 'react';
-import { auth, provider } from '../firebaseConfig';
-import { signInWithPopup, signInAnonymously } from 'firebase/auth';
-import { FirebaseError } from 'firebase/app';
+import { Player } from '../types';
 
-const Login: React.FC = () => {
+interface LoginProps {
+  onLogin: (user: Player) => void;
+}
+
+const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState<'google' | 'anonymous' | null>(null);
-
-  const errorMessageFromCode = (code?: string) => {
-    switch (code) {
-      case 'auth/popup-closed-by-user': return 'Popup closed before completing sign in.';
-      case 'auth/cancelled-popup-request': return 'Another sign-in attempt was in progress.';
-      case 'auth/popup-blocked': return 'Popup blocked. Please allow popups for this site.';
-      case 'auth/operation-not-allowed': return 'This sign-in method is disabled in your Firebase project.';
-      case 'auth/network-request-failed': return 'Network error. Check your connection and try again.';
-      default: return 'An unexpected error occurred. Please try again.';
-    }
-  };
 
   const handleGoogleSignIn = async () => {
     setLoading('google');
     setError('');
-    try {
-      provider.setCustomParameters({ prompt: 'select_account' });
-      await signInWithPopup(auth, provider);
-    } catch (error) {
-      let code = 'unknown';
-      if (error instanceof FirebaseError) {
-        code = error.code;
-      }
-      console.error("Google sign-in failed:", { code, message: (error as Error).message });
-      setError(errorMessageFromCode(code));
-    } finally {
+    // Simulate a network request
+    setTimeout(() => {
+      const mockGoogleUser: Player = {
+        id: 'user_google_123',
+        name: 'Jane Doe',
+        score: 0,
+        emailVerified: true,
+        isAnonymous: false,
+      };
+      onLogin(mockGoogleUser);
       setLoading(null);
-    }
+    }, 1000);
   };
   
   const handleAnonymousSignIn = async () => {
     setLoading('anonymous');
     setError('');
-    try {
-      await signInAnonymously(auth);
-    } catch (error) {
-      let code = 'unknown';
-      let message = 'Failed to sign in as guest.';
-       if (error instanceof FirebaseError) {
-        code = error.code;
-        message = error.message;
-      }
-      console.error('Error signing in anonymously:', { code, message });
-      setError(errorMessageFromCode(code));
-    } finally {
+    // Simulate a network request
+    setTimeout(() => {
+      const mockGuestUser: Player = {
+        id: 'user_guest_456',
+        name: 'Guest Player',
+        score: 0,
+        emailVerified: false,
+        isAnonymous: true,
+      };
+      onLogin(mockGuestUser);
       setLoading(null);
-    }
+    }, 500);
   };
 
   return (
