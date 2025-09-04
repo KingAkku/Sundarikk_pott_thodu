@@ -1,33 +1,15 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { 
-  onAuthStateChanged, 
-  signOut, 
-  sendEmailVerification, 
-  User
-} from 'firebase/auth';
-import {
-  doc,
-  getDoc,
-  setDoc,
-  collection,
-  query,
-  orderBy,
-  limit,
-  onSnapshot,
-  updateDoc,
-  increment,
-} from 'firebase/firestore';
+import { Player } from './types';
+import { auth, db, firebaseConfig, firebase } from './firebaseConfig';
 import Sidebar from './components/Sidebar';
 import GameCanvas from './components/GameCanvas';
 import Login from './components/Login';
 import VerifyEmail from './components/VerifyEmail';
-import { Player } from './types';
-import { auth, db, firebaseConfig } from './firebaseConfig';
 import FirebaseNotConfigured from './components/FirebaseNotConfigured';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<Player | null>(null);
-  const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
+  const [firebaseUser, setFirebaseUser] = useState<firebase.User | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [gameKey, setGameKey] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -38,13 +20,13 @@ const App: React.FC = () => {
   }
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
         setFirebaseUser(user);
-        const userRef = doc(db, 'users', user.uid);
-        const userSnap = await getDoc(userRef);
+        const userRef = db.collection('users').doc(user.uid);
+        const userSnap = await userRef.get();
 
-        if (userSnap.exists()) {
+        if (userSnap.exists) {
           setCurrentUser({
             id: user.uid,
             emailVerified: user.emailVerified,
@@ -69,12 +51,12 @@ const App: React.FC = () => {
             score: 0,
             emailVerified: user.emailVerified,
           };
-          await setDoc(userRef, { name: newUser.name, score: newUser.score });
+          await userRef.set({ name: newUser.name, score: newUser.score });
           setCurrentUser(newUser);
           
           if (providerId !== 'phone' && !user.emailVerified) {
             try {
-              await sendEmailVerification(user);
+              await user.sendEmailVerification();
             } catch (error) {
               console.error("Error sending verification email:", error);
             }
@@ -92,10 +74,10 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const usersCollectionRef = collection(db, 'users');
-    const q = query(usersCollectionRef, orderBy('score', 'desc'), limit(10));
+    const usersCollectionRef = db.collection('users');
+    const q = usersCollectionRef.orderBy('score', 'desc').limit(10);
     
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+    const unsubscribe = q.onSnapshot((querySnapshot) => {
       const leaderboardPlayers: Player[] = [];
       querySnapshot.forEach((doc) => {
         leaderboardPlayers.push({ id: doc.id, emailVerified: false, ...doc.data() } as Player);
@@ -109,9 +91,9 @@ const App: React.FC = () => {
   const handleScoreUpdate = useCallback(async (score: number) => {
     if (!currentUser) return;
 
-    const userRef = doc(db, "users", currentUser.id);
-    await updateDoc(userRef, {
-      score: increment(score)
+    const userRef = db.collection("users").doc(currentUser.id);
+    await userRef.update({
+      score: firebase.firestore.FieldValue.increment(score)
     });
 
     setCurrentUser(prevUser => prevUser ? { ...prevUser, score: prevUser.score + score } : null);
@@ -123,7 +105,7 @@ const App: React.FC = () => {
   
   const handleSignOut = async () => {
     try {
-      await signOut(auth);
+      await auth.signOut();
       setCurrentUser(null);
     } catch (error) {
       console.error("Error signing out:", error);

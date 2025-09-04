@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { GoogleAuthProvider, PhoneAuthProvider } from 'firebase/auth';
+import firebase from 'firebase/compat/app';
 import { auth } from '../firebaseConfig';
 
 // By loading firebaseui via a script tag in index.html, it becomes available on the window object.
@@ -14,9 +14,9 @@ const Login: React.FC = () => {
     const uiConfig = {
       signInSuccessUrl: '/', // On success, onAuthStateChanged will handle the user state
       signInOptions: [
-        GoogleAuthProvider.PROVIDER_ID,
+        firebase.auth.GoogleAuthProvider.PROVIDER_ID,
         {
-          provider: PhoneAuthProvider.PROVIDER_ID,
+          provider: firebase.auth.PhoneAuthProvider.PROVIDER_ID,
           recaptchaParameters: {
             type: 'image',
             size: 'invisible',
