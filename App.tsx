@@ -18,6 +18,7 @@ import Sidebar from './components/Sidebar';
 import GameCanvas from './components/GameCanvas';
 import Login from './components/Login';
 import FirebaseNotConfigured from './components/FirebaseNotConfigured';
+import ConnectionError from './components/ConnectionError';
 import { Player } from './types';
 
 const App: React.FC = () => {
@@ -25,6 +26,7 @@ const App: React.FC = () => {
   const [players, setPlayers] = useState<Player[]>([]);
   const [gameKey, setGameKey] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Helper function to safely check for placeholder strings in config values
   // without using JSON.stringify, which can fail on circular structures.
@@ -50,25 +52,30 @@ const App: React.FC = () => {
   }
 
   useEffect(() => {
+    // Auth state listener refactored to explicitly create plain objects for state,
+    // preventing circular reference errors while preserving all functionality.
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       try {
         if (user) {
           const userRef = doc(db, 'users', user.uid);
           const userSnap = await getDoc(userRef);
 
+          let playerProfile: Player;
+
           if (userSnap.exists()) {
+            // Existing user: create a plain object from Firestore data
             const data = userSnap.data();
-            setCurrentUser({
+            playerProfile = {
               id: user.uid,
+              name: data.name ?? 'Guest',
+              score: data.score ?? 0,
               emailVerified: user.emailVerified,
-              name: data?.name ?? 'Guest',
-              score: data?.score ?? 0,
               isAnonymous: user.isAnonymous,
-            });
+            };
           } else {
-            // New user
+            // New user: determine name and create a new plain object
             const providerId = user.providerData?.[0]?.providerId ?? null;
-            let name = 'Guest'; // Default name
+            let name = 'Guest';
 
             if (providerId === 'google.com' && user.displayName) {
               name = user.displayName;
@@ -78,7 +85,7 @@ const App: React.FC = () => {
               name = user.email.split('@')[0];
             }
 
-            const newUser: Player = {
+            playerProfile = {
               id: user.uid,
               name,
               score: 0,
@@ -86,26 +93,24 @@ const App: React.FC = () => {
               isAnonymous: user.isAnonymous,
             };
 
-            await setDoc(userRef, { name: newUser.name, score: newUser.score });
+            // Persist new user to Firestore using a plain object
+            const newUserDocData = { name: playerProfile.name, score: playerProfile.score };
+            await setDoc(userRef, newUserDocData);
 
-            setCurrentUser(newUser);
-
+            // Send verification email in the background without blocking UI
             if (!user.isAnonymous && user.email && !user.emailVerified) {
-              try {
-                // We can still send the verification email in the background
-                // but we won't block the user from playing.
-                await sendEmailVerification(user);
-              } catch (error) {
-                let code = 'unknown';
-                let message = 'Error sending verification email.';
-                if (error instanceof FirebaseError) {
-                    code = error.code;
-                    message = error.message;
-                }
-                console.error('Error sending verification email:', { code, message });
-              }
+              sendEmailVerification(user).catch((error) => {
+                 let code = 'unknown';
+                 let message = 'Error sending verification email.';
+                 if (error instanceof FirebaseError) {
+                     code = error.code;
+                     message = error.message;
+                 }
+                 console.error('Error sending verification email:', { code, message });
+              });
             }
           }
+          setCurrentUser(playerProfile);
         } else {
           setCurrentUser(null);
         }
@@ -117,7 +122,7 @@ const App: React.FC = () => {
               message = error.message;
           }
           console.error("Error during authentication state change:", { code, message });
-          // Set user to null to prevent being stuck in a broken state
+          setError("Could not connect to the game services. Please check your internet connection or try again later.");
           setCurrentUser(null);
       }
       finally {
@@ -129,22 +134,25 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    // If there's already an error, don't try to fetch the leaderboard.
+    if (error) return;
+
     const usersCollectionRef = collection(db, 'users');
     const q = query(usersCollectionRef, orderBy('score', 'desc'), limit(10));
 
+    // Leaderboard listener refactored to use .map for a more concise functional approach.
     const unsubscribe = onSnapshot(
       q,
       (querySnapshot) => {
-        const leaderboardPlayers: Player[] = [];
-        querySnapshot.forEach((doc) => {
+        const leaderboardPlayers: Player[] = querySnapshot.docs.map((doc) => {
           const data = doc.data();
-          leaderboardPlayers.push({
+          return {
             id: doc.id,
             emailVerified: false, // Not needed for leaderboard display
             name: data?.name ?? 'Guest',
             score: data?.score ?? 0,
             isAnonymous: data?.isAnonymous ?? false,
-          });
+          };
         });
         setPlayers(leaderboardPlayers);
       },
@@ -156,11 +164,12 @@ const App: React.FC = () => {
             message = err.message;
         }
         console.error('Leaderboard snapshot error:', { code, message });
+        setError("Could not load the leaderboard due to a connection issue.");
       }
     );
 
     return () => unsubscribe();
-  }, []);
+  }, [error]);
 
   const handleScoreUpdate = useCallback(
     async (score: number) => {
@@ -202,6 +211,10 @@ const App: React.FC = () => {
         <p className="text-[#F5F1E9] text-xl">Loading...</p>
       </div>
     );
+  }
+
+  if (error) {
+    return <ConnectionError message={error} />;
   }
 
   if (!currentUser) {
