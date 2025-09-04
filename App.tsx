@@ -1,47 +1,69 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import type firebaseCompat from 'firebase/compat/app';
-import { auth, db, firebaseConfig, firebase } from './firebaseConfig';
+import { auth, db, firebaseConfig } from './firebaseConfig';
+import { onAuthStateChanged, User, sendEmailVerification } from 'firebase/auth';
+import { FirebaseError } from 'firebase/app';
+import {
+  doc,
+  getDoc,
+  setDoc,
+  collection,
+  query,
+  orderBy,
+  limit,
+  onSnapshot,
+  updateDoc,
+  increment,
+} from 'firebase/firestore';
 import Sidebar from './components/Sidebar';
 import GameCanvas from './components/GameCanvas';
 import Login from './components/Login';
-import VerifyEmail from './components/VerifyEmail';
 import FirebaseNotConfigured from './components/FirebaseNotConfigured';
 import { Player } from './types';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<Player | null>(null);
-  const [firebaseUser, setFirebaseUser] = useState<firebaseCompat.User | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [gameKey, setGameKey] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
+  // Helper function to safely check for placeholder strings in config values
+  // without using JSON.stringify, which can fail on circular structures.
+  const hasPlaceholderValues = (config: object): boolean => {
+    for (const value of Object.values(config)) {
+      if (typeof value === 'string' && /YOUR_|REPLACE_ME|PROJECT_ID|YOUR_API_KEY/i.test(value)) {
+        return true;
+      }
+    }
+    return false;
+  };
+
   // Enhanced check to be more robust against incomplete or placeholder configurations.
-  // It verifies that essential keys are present and not just default template values.
   const isFirebaseConfigInvalid =
     !firebaseConfig ||
     !firebaseConfig.apiKey ||
     !firebaseConfig.authDomain ||
     !firebaseConfig.projectId ||
-    /YOUR_|REPLACE_ME|PROJECT_ID|YOUR_API_KEY/i.test(JSON.stringify(firebaseConfig));
+    hasPlaceholderValues(firebaseConfig);
 
   if (isFirebaseConfigInvalid) {
     return <FirebaseNotConfigured />;
   }
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       try {
         if (user) {
-          setFirebaseUser(user);
-          const userRef = db.collection('users').doc(user.uid);
-          const userSnap = await userRef.get();
+          const userRef = doc(db, 'users', user.uid);
+          const userSnap = await getDoc(userRef);
 
-          if (userSnap.exists) {
-            const data = userSnap.data() || {};
+          if (userSnap.exists()) {
+            const data = userSnap.data();
             setCurrentUser({
               id: user.uid,
               emailVerified: user.emailVerified,
-              ...(data as Omit<Player, 'id' | 'emailVerified'>),
+              name: data?.name ?? 'Guest',
+              score: data?.score ?? 0,
+              isAnonymous: user.isAnonymous,
             });
           } else {
             // New user
@@ -50,6 +72,8 @@ const App: React.FC = () => {
 
             if (providerId === 'google.com' && user.displayName) {
               name = user.displayName;
+            } else if (user.isAnonymous) {
+              name = 'Guest Player';
             } else if (user.email) {
               name = user.email.split('@')[0];
             }
@@ -59,25 +83,44 @@ const App: React.FC = () => {
               name,
               score: 0,
               emailVerified: user.emailVerified,
+              isAnonymous: user.isAnonymous,
             };
 
-            await userRef.set({ name: newUser.name, score: newUser.score });
+            await setDoc(userRef, { name: newUser.name, score: newUser.score });
 
             setCurrentUser(newUser);
 
             if (!user.isAnonymous && user.email && !user.emailVerified) {
               try {
-                await user.sendEmailVerification();
+                // We can still send the verification email in the background
+                // but we won't block the user from playing.
+                await sendEmailVerification(user);
               } catch (error) {
-                console.error('Error sending verification email:', error);
+                let code = 'unknown';
+                let message = 'Error sending verification email.';
+                if (error instanceof FirebaseError) {
+                    code = error.code;
+                    message = error.message;
+                }
+                console.error('Error sending verification email:', { code, message });
               }
             }
           }
         } else {
           setCurrentUser(null);
-          setFirebaseUser(null);
         }
-      } finally {
+      } catch (error) {
+          let code = 'unknown';
+          let message = 'An unexpected error occurred during auth state change.';
+          if (error instanceof FirebaseError) {
+              code = error.code;
+              message = error.message;
+          }
+          console.error("Error during authentication state change:", { code, message });
+          // Set user to null to prevent being stuck in a broken state
+          setCurrentUser(null);
+      }
+      finally {
         setIsLoading(false);
       }
     });
@@ -86,23 +129,33 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const usersCollectionRef = db.collection('users');
-    const q = usersCollectionRef.orderBy('score', 'desc').limit(10);
+    const usersCollectionRef = collection(db, 'users');
+    const q = query(usersCollectionRef, orderBy('score', 'desc'), limit(10));
 
-    const unsubscribe = q.onSnapshot(
+    const unsubscribe = onSnapshot(
+      q,
       (querySnapshot) => {
         const leaderboardPlayers: Player[] = [];
         querySnapshot.forEach((doc) => {
+          const data = doc.data();
           leaderboardPlayers.push({
             id: doc.id,
-            emailVerified: false,
-            ...(doc.data() as Omit<Player, 'id' | 'emailVerified'>),
+            emailVerified: false, // Not needed for leaderboard display
+            name: data?.name ?? 'Guest',
+            score: data?.score ?? 0,
+            isAnonymous: data?.isAnonymous ?? false,
           });
         });
         setPlayers(leaderboardPlayers);
       },
       (err) => {
-        console.error('Leaderboard snapshot error:', err);
+        let code = 'unknown';
+        let message = 'An unexpected error occurred fetching the leaderboard.';
+        if (err instanceof FirebaseError) {
+            code = err.code;
+            message = err.message;
+        }
+        console.error('Leaderboard snapshot error:', { code, message });
       }
     );
 
@@ -117,38 +170,31 @@ const App: React.FC = () => {
       setCurrentUser((prev) => (prev ? { ...prev, score: prev.score + score } : prev));
 
       // Only persist for non-anonymous users
-      const isAnonymous = firebaseUser?.isAnonymous === true;
-      if (isAnonymous) return;
+      if (currentUser.isAnonymous) return;
 
       try {
-        const userRef = db.collection('users').doc(currentUser.id);
-        await userRef.update({
-          score: firebase.firestore.FieldValue.increment(score),
+        const userRef = doc(db, 'users', currentUser.id);
+        await updateDoc(userRef, {
+          score: increment(score),
         });
-      } catch (e) {
-        console.error('Failed to persist score:', e);
+      } catch (error) {
+        let code = 'unknown';
+        let message = 'Failed to persist score.';
+        if (error instanceof FirebaseError) {
+            code = error.code;
+            message = error.message;
+        }
+        console.error('Failed to persist score:', { code, message });
         // Optional: rollback local increment on failure
         setCurrentUser((prev) => (prev ? { ...prev, score: prev.score - score } : prev));
       }
     },
-    [currentUser, firebaseUser]
+    [currentUser]
   );
 
   const handleNewGame = useCallback(() => {
     setGameKey((prevKey) => prevKey + 1);
   }, []);
-
-  const handleSignOut = async () => {
-    try {
-      await auth.signOut();
-      setCurrentUser(null);
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
-  };
-
-  const isAnonymousUser = firebaseUser?.isAnonymous === true;
-  const isEmailVerifiedUser = firebaseUser?.emailVerified === true;
 
   if (isLoading) {
     return (
@@ -160,10 +206,6 @@ const App: React.FC = () => {
 
   if (!currentUser) {
     return <Login />;
-  }
-
-  if (!isAnonymousUser && !isEmailVerifiedUser) {
-    return <VerifyEmail user={firebaseUser} onSignOut={handleSignOut} />;
   }
 
   return (

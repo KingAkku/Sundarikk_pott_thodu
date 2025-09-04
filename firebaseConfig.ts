@@ -1,6 +1,6 @@
-import firebase from 'firebase/compat/app';
-import 'firebase/compat/auth';
-import 'firebase/compat/firestore';
+import { initializeApp } from 'firebase/app';
+import { getAuth, GoogleAuthProvider } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyBL1Y0YIEOdsrAOT_Rr4Gz3eXtUerBy5SQ',
@@ -17,17 +17,9 @@ const firebaseConfig = {
 // to the "Website restrictions" for this API key.
 // This helps prevent unauthorized use of your Firebase project.
 
-const app = !firebase.apps.length ? firebase.initializeApp(firebaseConfig) : firebase.app();
-const auth = firebase.auth();
-const db = firebase.firestore();
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const provider = new GoogleAuthProvider();
 
-// Optional but recommended: choose your desired persistence
-// import 'firebase/compat/auth';
-// auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(console.error);
-
-const provider = new firebase.auth.GoogleAuthProvider();
-// Optional scope examples:
-// provider.addScope('profile');
-// provider.addScope('email');
-
-export { app, auth, db, provider, firebaseConfig, firebase };
+export { app, auth, db, provider, firebaseConfig };
