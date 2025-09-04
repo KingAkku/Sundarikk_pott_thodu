@@ -6,7 +6,7 @@ interface GameCanvasProps {
 }
 
 const IMAGE_SIZE = { width: 150, height: 225 };
-const IMAGE_URL = '/sundari.png';
+const IMAGE_URL = '/sundari.svg';
 
 const ScorePopupItem: React.FC<{ popup: ScorePopup }> = ({ popup }) => {
     const [visible, setVisible] = useState(false);
