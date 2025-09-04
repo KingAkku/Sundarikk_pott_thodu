@@ -3,7 +3,6 @@ export interface Player {
   name: string;
   score: number;
   emailVerified: boolean;
-  isAnonymous: boolean;
 }
 
 export interface Click {

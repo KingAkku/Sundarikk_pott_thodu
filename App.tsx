@@ -1,56 +1,125 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Player } from './types';
 import Sidebar from './components/Sidebar';
 import GameCanvas from './components/GameCanvas';
 import Login from './components/Login';
+import VerifyEmail from './components/VerifyEmail';
+import { Player } from './types';
+import { auth, db } from './firebaseConfig';
+import {
+  doc,
+  getDoc,
+  setDoc,
+  collection,
+  query,
+  orderBy,
+  limit,
+  onSnapshot,
+  updateDoc,
+  increment,
+} from 'firebase/firestore';
+import { sendEmailVerification } from 'firebase/auth';
 
-const MOCK_LEADERBOARD: Player[] = [
-  { id: '1', name: 'Alice', score: 150, emailVerified: true, isAnonymous: false },
-  { id: '2', name: 'Bob', score: 125, emailVerified: true, isAnonymous: false },
-  { id: '3', name: 'Charlie', score: 110, emailVerified: true, isAnonymous: false },
-  { id: '4', name: 'David', score: 95, emailVerified: true, isAnonymous: false },
-  { id: '5', name: 'Eve', score: 80, emailVerified: true, isAnonymous: false },
-];
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<Player | null>(null);
-  const [players, setPlayers] = useState<Player[]>(MOCK_LEADERBOARD);
+  const [players, setPlayers] = useState<Player[]>([]);
   const [gameKey, setGameKey] = useState<number>(0);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  const handleLogin = (user: Player) => {
-    setCurrentUser(user);
-    // Add the new user to the leaderboard if they aren't already there
-    setPlayers(prevPlayers => {
-      if (prevPlayers.some(p => p.id === user.id)) {
-        return prevPlayers;
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        const userRef = doc(db, 'users', user.uid);
+        const userSnap = await getDoc(userRef);
+
+        if (userSnap.exists()) {
+          const data = userSnap.data();
+          setCurrentUser({
+            id: user.uid,
+            name: data.name,
+            score: data.score,
+            emailVerified: user.emailVerified,
+          });
+        } else {
+          // New user
+          const newUser: Player = {
+            id: user.uid,
+            name: user.displayName || 'Anonymous',
+            score: 0,
+            emailVerified: user.emailVerified,
+          };
+          await setDoc(userRef, { name: newUser.name, score: newUser.score });
+          setCurrentUser(newUser);
+          
+          // Send verification email for new users
+          if (!user.emailVerified) {
+            try {
+              await sendEmailVerification(user);
+            } catch (error) {
+              console.error("Error sending verification email:", error);
+            }
+          }
+        }
+      } else {
+        setCurrentUser(null);
       }
-      return [...prevPlayers, user];
+      setIsLoading(false);
     });
-  };
+    return () => unsubscribe();
+  }, []);
 
-  const handleScoreUpdate = useCallback((score: number) => {
+  useEffect(() => {
+    const usersCollection = collection(db, 'users');
+    const q = query(usersCollection, orderBy('score', 'desc'), limit(10));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const leaderboardPlayers: Player[] = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        leaderboardPlayers.push({ id: doc.id, emailVerified: false, name: data.name, score: data.score });
+      });
+      setPlayers(leaderboardPlayers);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleScoreUpdate = useCallback(async (score: number) => {
     if (!currentUser) return;
 
-    const updateUser = (userToUpdate: Player | null) => {
-        if (!userToUpdate) return null;
-        return { ...userToUpdate, score: (userToUpdate.score || 0) + score };
-    };
+    const userRef = doc(db, "users", currentUser.id);
+    await updateDoc(userRef, {
+      score: increment(score)
+    });
 
-    // Update current user state
-    setCurrentUser(updateUser);
-
-    // Update leaderboard state
-    setPlayers(prevPlayers => 
-        prevPlayers.map(p => p.id === currentUser.id ? updateUser(p) as Player : p)
-    );
+    setCurrentUser(prevUser => prevUser ? { ...prevUser, score: prevUser.score + score } : null);
   }, [currentUser]);
 
   const handleNewGame = useCallback(() => {
     setGameKey(prevKey => prevKey + 1);
   }, []);
 
+  const handleSignOut = async () => {
+    try {
+      await auth.signOut();
+      setCurrentUser(null);
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen w-screen justify-center items-center bg-[#0D1B1E]">
+        <p className="text-white text-xl">Loading...</p>
+      </div>
+    );
+  }
+
   if (!currentUser) {
-    return <Login onLogin={handleLogin} />;
+    return <Login />;
+  }
+  
+  if (!currentUser.emailVerified) {
+    return <VerifyEmail user={auth.currentUser} onSignOut={handleSignOut} />;
   }
 
   return (
