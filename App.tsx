@@ -6,12 +6,12 @@ import VerifyEmail from './components/VerifyEmail';
 import { Player } from './types';
 import { auth, db, firebaseConfig } from './firebaseConfig';
 import FirebaseNotConfigured from './components/FirebaseNotConfigured';
-// FIX: Using Firebase v8 compatible imports for types and side-effects.
-import firebase from 'firebase/app';
-import 'firebase/auth';
-import 'firebase/firestore';
 
-// FIX: Using Firebase v8 compatible type for User.
+// Fix: The modular v9 imports are failing. Switched to v8-compat API style.
+import firebase from 'firebase/compat/app';
+import 'firebase/compat/auth';
+import 'firebase/compat/firestore';
+// Fix: Define User type from the firebase object.
 type User = firebase.User;
 
 
@@ -22,20 +22,22 @@ const App: React.FC = () => {
   const [gameKey, setGameKey] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Check if Firebase config is using placeholder values
+  // Check if Firebase config is still using placeholder values
   if (firebaseConfig.apiKey === 'YOUR_API_KEY') {
     return <FirebaseNotConfigured />;
   }
 
   useEffect(() => {
-    // FIX: Using Firebase v8 auth.onAuthStateChanged method.
+    // Fix: Use v8 compat API for onAuthStateChanged
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
         setFirebaseUser(user);
-        // FIX: Using Firebase v8 firestore syntax.
+        // Fix: Use v8 compat API for Firestore document reference
         const userRef = db.collection('users').doc(user.uid);
+        // Fix: Use v8 compat API to get document
         const userSnap = await userRef.get();
 
+        // Fix: use .exists property instead of .exists() method
         if (userSnap.exists) {
           setCurrentUser({
             id: user.uid,
@@ -50,14 +52,14 @@ const App: React.FC = () => {
             score: 0,
             emailVerified: user.emailVerified,
           };
-          // FIX: Using Firebase v8 firestore syntax.
+          // Fix: Use v8 compat API to set document
           await userRef.set({ name: newUser.name, score: newUser.score });
           setCurrentUser(newUser);
           
           // Send verification email for new users
           if (!user.emailVerified) {
             try {
-              // FIX: Using Firebase v8 user.sendEmailVerification method.
+              // Fix: Use v8 compat API to send verification email
               await user.sendEmailVerification();
             } catch (error) {
               console.error("Error sending verification email:", error);
@@ -75,9 +77,11 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // FIX: Using Firebase v8 firestore syntax.
+    // Fix: Use v8 compat API for collection and query
     const usersCollectionRef = db.collection('users');
     const q = usersCollectionRef.orderBy('score', 'desc').limit(10);
+    
+    // Fix: Use v8 compat API for onSnapshot
     const unsubscribe = q.onSnapshot((querySnapshot) => {
       const leaderboardPlayers: Player[] = [];
       querySnapshot.forEach((doc) => {
@@ -92,10 +96,10 @@ const App: React.FC = () => {
   const handleScoreUpdate = useCallback(async (score: number) => {
     if (!currentUser) return;
 
-    // FIX: Using Firebase v8 firestore syntax.
+    // Fix: Use v8 compat API for document reference
     const userRef = db.collection("users").doc(currentUser.id);
+    // Fix: Use v8 compat API for update and increment
     await userRef.update({
-      // FIX: Using Firebase v8 FieldValue.increment.
       score: firebase.firestore.FieldValue.increment(score)
     });
 
@@ -108,7 +112,7 @@ const App: React.FC = () => {
   
   const handleSignOut = async () => {
     try {
-      // FIX: Using Firebase v8 auth.signOut method.
+      // Fix: Use v8 compat API for signOut
       await auth.signOut();
       setCurrentUser(null);
     } catch (error) {

@@ -1,6 +1,7 @@
 import React from 'react';
 import { auth, provider } from '../firebaseConfig';
-// FIX: Removed unused v9 import. signInWithPopup is called on the auth object in v8.
+// Fix: The signInWithPopup function is now a method on the auth object, so the modular import is removed.
+// import { signInWithPopup } from 'firebase/auth';
 
 const GoogleIcon: React.FC = () => (
     <svg className="w-5 h-5 mr-3" viewBox="0 0 48 48">
@@ -16,7 +17,7 @@ const Login: React.FC = () => {
 
   const handleGoogleSignIn = async () => {
     try {
-      // FIX: Using Firebase v8 auth.signInWithPopup method.
+      // Fix: Use v8 compat API for signInWithPopup
       await auth.signInWithPopup(provider);
       // Auth state change will be handled by the listener in App.tsx
     } catch (error) {

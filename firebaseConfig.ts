@@ -1,24 +1,27 @@
-// FIX: Using Firebase v8 compatible imports and initialization
-import firebase from 'firebase/app';
-import 'firebase/auth';
-import 'firebase/firestore';
+// Fix: Use Firebase v8 compat imports to resolve module export errors.
+import firebase from "firebase/compat/app";
+import "firebase/compat/auth";
+import "firebase/compat/firestore";
 
-// IMPORTANT: Replace the placeholder values below with your actual
-// Firebase project configuration. You can find this in your
-// Firebase project settings.
+// Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyBL1Y0YIEOdsrAOT_Rr4Gz3eXtUerBy5SQ",
+  authDomain: "sundari-007.firebaseapp.com",
+  projectId: "sundari-007",
+  storageBucket: "sundari-007.firebasestorage.app",
+  messagingSenderId: "878871299880",
+  appId: "1:878871299880:web:71bca3776be7300958721d",
+  measurementId: "G-53SQWMGJMX"
 };
 
 // Initialize Firebase
-const app = firebase.initializeApp(firebaseConfig);
+// Fix: Use v8 compat initialization style.
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
+const app = firebase.app();
 const auth = firebase.auth();
 const db = firebase.firestore();
 const provider = new firebase.auth.GoogleAuthProvider();
 
-export { app, auth, db, provider, firebaseConfig }; // Export firebaseConfig
+export { app, auth, db, provider, firebaseConfig };
