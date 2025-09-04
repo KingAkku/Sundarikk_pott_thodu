@@ -1,51 +1,129 @@
-
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import GameCanvas from './components/GameCanvas';
 import Login from './components/Login';
+import VerifyEmail from './components/VerifyEmail';
 import { Player } from './types';
+import { auth, db } from './firebaseConfig';
+// FIX: Import Firebase v9 modular functions for Firestore.
+import {
+  doc,
+  getDoc,
+  setDoc,
+  collection,
+  query,
+  orderBy,
+  limit,
+  onSnapshot,
+  updateDoc,
+  increment,
+} from 'firebase/firestore';
 
-const initialPlayers: Player[] = [
-  { id: 'player-1', name: 'AI-Player-1', score: 150 },
-  { id: 'player-2', name: 'AI-Player-2', score: 125 },
-  { id: 'player-3', name: 'AI-Player-3', score: 90 },
-  { id: 'player-4', name: 'AI-Player-4', score: 50 },
-];
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<Player | null>(null);
-  const [players, setPlayers] = useState<Player[]>(initialPlayers);
+  const [players, setPlayers] = useState<Player[]>([]);
   const [gameKey, setGameKey] = useState<number>(0);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  const handleLogin = useCallback((name: string) => {
-    const newUser: Player = {
-      id: `user-${Date.now()}`,
-      name: name,
-      score: 0,
-    };
-    setCurrentUser(newUser);
-    setPlayers(prevPlayers => [...prevPlayers, newUser]);
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        // FIX: Use v9 doc() and getDoc()
+        const userRef = doc(db, 'users', user.uid);
+        const userSnap = await getDoc(userRef);
+
+        if (userSnap.exists()) {
+          setCurrentUser({
+            id: user.uid,
+            emailVerified: user.emailVerified,
+            ...userSnap.data(),
+          } as Player);
+        } else {
+          // New user
+          const newUser: Player = {
+            id: user.uid,
+            name: user.displayName || 'Anonymous',
+            score: 0,
+            emailVerified: user.emailVerified,
+          };
+          // FIX: Use v9 setDoc()
+          await setDoc(userRef, { name: newUser.name, score: newUser.score });
+          setCurrentUser(newUser);
+          
+          // Send verification email for new users
+          if (!user.emailVerified) {
+            try {
+              await user.sendEmailVerification();
+            } catch (error) {
+              console.error("Error sending verification email:", error);
+            }
+          }
+        }
+      } else {
+        setCurrentUser(null);
+      }
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  const handleScoreUpdate = useCallback((score: number) => {
+  useEffect(() => {
+    // FIX: Use v9 collection() and query()
+    const usersCollection = collection(db, 'users');
+    const q = query(usersCollection, orderBy('score', 'desc'), limit(10));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const leaderboardPlayers: Player[] = [];
+      querySnapshot.forEach((doc) => {
+        leaderboardPlayers.push({ id: doc.id, emailVerified: false, ...doc.data() } as Player);
+      });
+      setPlayers(leaderboardPlayers);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const handleScoreUpdate = useCallback(async (score: number) => {
     if (!currentUser) return;
 
-    setPlayers(prevPlayers =>
-      prevPlayers.map(p =>
-        p.id === currentUser.id ? { ...p, score: p.score + score } : p
-      )
-    );
-    
-    setCurrentUser(prevUser => prevUser ? {...prevUser, score: prevUser.score + score} : null);
+    // FIX: Use v9 doc()
+    const userRef = doc(db, "users", currentUser.id);
+    // FIX: Use v9 updateDoc() and increment() to resolve error on line 75
+    await updateDoc(userRef, {
+      score: increment(score)
+    });
 
+    setCurrentUser(prevUser => prevUser ? { ...prevUser, score: prevUser.score + score } : null);
   }, [currentUser]);
 
   const handleNewGame = useCallback(() => {
     setGameKey(prevKey => prevKey + 1);
   }, []);
   
+  const handleSignOut = async () => {
+    try {
+      await auth.signOut();
+      setCurrentUser(null);
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen w-screen justify-center items-center bg-slate-900">
+        <p className="text-white text-xl">Loading...</p>
+      </div>
+    );
+  }
+
   if (!currentUser) {
-    return <Login onLogin={handleLogin} />;
+    return <Login />;
+  }
+  
+  if (!currentUser.emailVerified) {
+    return <VerifyEmail user={auth.currentUser} onSignOut={handleSignOut} />;
   }
 
   return (
