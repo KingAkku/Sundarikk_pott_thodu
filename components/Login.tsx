@@ -1,55 +1,91 @@
-import React, { useEffect } from 'react';
-import firebase from 'firebase/compat/app';
-import { auth } from '../firebaseConfig';
-
-// By loading firebaseui via a script tag in index.html, it becomes available on the window object.
-// We declare it here to let TypeScript know it exists globally.
-declare const firebaseui: any;
+import React, { useState } from 'react';
+import { auth, provider } from '../firebaseConfig';
 
 const Login: React.FC = () => {
-  useEffect(() => {
-    // Use the globally available firebaseui
-    const ui = firebaseui.auth.AuthUI.getInstance() || new firebaseui.auth.AuthUI(auth);
-    
-    const uiConfig = {
-      signInSuccessUrl: '/', // On success, onAuthStateChanged will handle the user state
-      signInOptions: [
-        firebase.auth.GoogleAuthProvider.PROVIDER_ID,
-        {
-          provider: firebase.auth.PhoneAuthProvider.PROVIDER_ID,
-          recaptchaParameters: {
-            type: 'image',
-            size: 'invisible',
-            badge: 'bottomright'
-          },
-          defaultCountry: 'US',
-        }
-      ],
-      credentialHelper: firebaseui.auth.CredentialHelper.NONE,
-      callbacks: {
-        signInSuccessWithAuthResult: () => {
-          // Return false to prevent redirect, allowing onAuthStateChanged in App.tsx to handle it.
-          return false; 
-        }
-      }
-    };
-    
-    ui.start('#firebaseui-auth-container', uiConfig);
+  const [guestName, setGuestName] = useState('');
+  const [error, setError] = useState('');
 
-  }, []);
+  const handleGoogleSignIn = async () => {
+    try {
+      await auth.signInWithPopup(provider);
+      // onAuthStateChanged in App.tsx will handle the rest
+    } catch (err) {
+      console.error("Error signing in with Google:", err);
+      setError('Failed to sign in with Google. Please try again.');
+    }
+  };
+
+  const handleAnonymousSignIn = async () => {
+    if (guestName.trim() === '') {
+      setError('Please enter a name to play as a guest.');
+      return;
+    }
+    setError('');
+    try {
+      const userCredential = await auth.signInAnonymously();
+      if (userCredential.user) {
+        await userCredential.user.updateProfile({
+          displayName: guestName.trim(),
+        });
+      }
+      // onAuthStateChanged in App.tsx will handle navigation
+    } catch (err) {
+      console.error("Error signing in anonymously:", err);
+      setError('Failed to sign in as guest. Please try again.');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col justify-center items-center p-4">
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-sm">
         <div className="bg-white shadow-2xl rounded-2xl p-8 transform hover:scale-105 transition-transform duration-300">
           <h1 className="text-3xl font-bold text-slate-800 text-center mb-2">Pin the Dot</h1>
           <p className="text-center text-slate-500 mb-8">A game of precision and fun!</p>
-          
-          {/* Container where FirebaseUI will render the login options */}
-          <div id="firebaseui-auth-container"></div>
+
+          <div className="space-y-4">
+            <button
+              onClick={handleGoogleSignIn}
+              className="w-full flex items-center justify-center bg-white border border-gray-300 text-slate-700 font-semibold py-2 px-4 rounded-lg focus:outline-none hover:bg-gray-50 transition-colors duration-300 shadow-sm"
+            >
+              <svg className="w-5 h-5 mr-2" viewBox="0 0 48 48">
+                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
+                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.42-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
+                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
+                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.82l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
+                <path fill="none" d="M0 0h48v48H0z"></path>
+              </svg>
+              Sign in with Google
+            </button>
+            
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="bg-white px-2 text-gray-500">or</span>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <input
+                type="text"
+                value={guestName}
+                onChange={(e) => setGuestName(e.target.value)}
+                placeholder="Enter your name"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <button
+                onClick={handleAnonymousSignIn}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline-indigo transition-all duration-300 transform hover:scale-105 shadow-lg"
+              >
+                Play as Guest
+              </button>
+            </div>
+          </div>
+          {error && <p className="text-red-500 text-sm text-center mt-4">{error}</p>}
         </div>
         <p className="text-center text-xs text-slate-400 mt-6">
-          Sign in to save your score and join the leaderboard.
+          Sign in with Google to save your score permanently.
         </p>
       </div>
     </div>

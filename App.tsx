@@ -35,12 +35,12 @@ const App: React.FC = () => {
         } else {
           // New user
           const providerId = user.providerData[0]?.providerId;
-          let name = 'Anonymous';
+          let name = 'Guest';
 
-          if (providerId === 'google.com' && user.displayName) {
+          if (user.isAnonymous && user.displayName) {
             name = user.displayName;
-          } else if (providerId === 'phone' && user.phoneNumber) {
-            name = `User ****${user.phoneNumber.slice(-4)}`;
+          } else if (providerId === 'google.com' && user.displayName) {
+            name = user.displayName;
           } else if (user.email) {
             name = user.email.split('@')[0];
           }
@@ -54,7 +54,7 @@ const App: React.FC = () => {
           await userRef.set({ name: newUser.name, score: newUser.score });
           setCurrentUser(newUser);
           
-          if (providerId !== 'phone' && !user.emailVerified) {
+          if (!user.isAnonymous && user.email && !user.emailVerified) {
             try {
               await user.sendEmailVerification();
             } catch (error) {
@@ -111,8 +111,9 @@ const App: React.FC = () => {
       console.error("Error signing out:", error);
     }
   };
-
-  const isPhoneUser = firebaseUser?.providerData[0]?.providerId === 'phone';
+  
+  const isAnonymousUser = firebaseUser?.isAnonymous === true;
+  const isEmailVerifiedUser = firebaseUser?.emailVerified === true;
 
   if (isLoading) {
     return (
@@ -126,7 +127,7 @@ const App: React.FC = () => {
     return <Login />;
   }
   
-  if (!currentUser.emailVerified && !isPhoneUser) {
+  if (!isAnonymousUser && !isEmailVerifiedUser) {
     return <VerifyEmail user={firebaseUser} onSignOut={handleSignOut} />;
   }
 
