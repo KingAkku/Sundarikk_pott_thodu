@@ -29,35 +29,6 @@ const App: React.FC = () => {
   }
 
   useEffect(() => {
-    // This effect handles the email sign-in link if present in the URL.
-    const handleEmailLinkSignIn = async () => {
-      if (auth.isSignInWithEmailLink(window.location.href)) {
-        let email = window.localStorage.getItem('emailForSignIn');
-        if (!email) {
-          // This can happen if the user opens the link on a different device.
-          // In a real app, you would prompt the user for their email.
-          console.error("Could not complete sign-in: email not found in local storage.");
-          window.history.replaceState(null, '', window.location.pathname);
-          return;
-        }
-
-        try {
-          // This will trigger the onAuthStateChanged listener below
-          await auth.signInWithEmailLink(email, window.location.href);
-        } catch (error) {
-          console.error("Error signing in with email link:", error);
-        } finally {
-          window.localStorage.removeItem('emailForSignIn');
-          // Clean up URL to avoid the logic running again on refresh
-          window.history.replaceState(null, '', window.location.pathname);
-        }
-      }
-    };
-
-    handleEmailLinkSignIn();
-  }, []); // Runs only on initial mount.
-
-  useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       try {
         if (user) {
@@ -75,11 +46,9 @@ const App: React.FC = () => {
           } else {
             // New user
             const providerId = user.providerData?.[0]?.providerId ?? null;
-            let name = 'Guest';
+            let name = 'Guest'; // Default name
 
-            if (user.isAnonymous && user.displayName) {
-              name = user.displayName;
-            } else if (providerId === 'google.com' && user.displayName) {
+            if (providerId === 'google.com' && user.displayName) {
               name = user.displayName;
             } else if (user.email) {
               name = user.email.split('@')[0];
