@@ -1,0 +1,5 @@
+{
+  "name": "Pin the Dot Game",
+  "description": "A fun, interactive game where you try to click on a lady's picture to score points. Features a real-time leaderboard and a playful, modern UI.",
+  "requestFramePermissions": []
+}
