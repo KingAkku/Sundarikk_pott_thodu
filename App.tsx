@@ -40,29 +40,9 @@ const App: React.FC = () => {
   }
 
   useEffect(() => {
-    // Handle the email link sign-in flow on page load
-    (async () => {
-      if (isSignInWithEmailLink(auth, window.location.href)) {
-        let email = window.localStorage.getItem('emailForSignIn');
-        if (!email) {
-          email = window.prompt('Please provide your email for confirmation');
-        }
-        if (email) {
-            try {
-                // This signs the user in and will trigger onAuthStateChanged
-                await signInWithEmailLink(auth, email, window.location.href);
-                window.localStorage.removeItem('emailForSignIn');
-                window.history.replaceState({}, document.title, window.location.pathname);
-            } catch (error) {
-                console.error("Error signing in with email link:", error);
-                // The user will not be logged in, and onAuthStateChanged will handle the null user state.
-            }
-        }
-      }
-    })();
-
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
+        // User is signed in. Process their data.
         setFirebaseUser(user);
         const userRef = doc(db, 'users', user.uid);
         const userSnap = await getDoc(userRef);
@@ -84,8 +64,6 @@ const App: React.FC = () => {
           await setDoc(userRef, { name: newUser.name, score: newUser.score });
           setCurrentUser(newUser);
           
-          // Send verification email for new users (e.g., from Google Sign-In if not verified)
-          // Users from email link are verified by nature of the sign-in method.
           if (!user.emailVerified) {
             try {
               await sendEmailVerification(user);
@@ -94,11 +72,42 @@ const App: React.FC = () => {
             }
           }
         }
+        setIsLoading(false);
       } else {
-        setCurrentUser(null);
-        setFirebaseUser(null);
+        // No user is signed in. Check if it's an email link sign-in attempt.
+        if (isSignInWithEmailLink(auth, window.location.href)) {
+          let email = window.localStorage.getItem('emailForSignIn');
+          if (!email) {
+            email = window.prompt('Please provide your email for confirmation');
+          }
+          if (email) {
+            try {
+              // This will sign the user in and trigger onAuthStateChanged again with a user object.
+              // We don't set loading to false here; we wait for the next auth state change.
+              await signInWithEmailLink(auth, email, window.location.href);
+              window.localStorage.removeItem('emailForSignIn');
+              window.history.replaceState({}, document.title, window.location.pathname);
+            } catch (error) {
+              console.error("Error signing in with email link:", error);
+              window.localStorage.removeItem('emailForSignIn');
+              // Sign-in failed. Set user to null and stop loading.
+              setCurrentUser(null);
+              setFirebaseUser(null);
+              setIsLoading(false);
+            }
+          } else {
+            // No email provided for link sign-in. We are not logged in. Stop loading.
+            setCurrentUser(null);
+            setFirebaseUser(null);
+            setIsLoading(false);
+          }
+        } else {
+          // Not an email sign-in link, and no user. We are not logged in. Stop loading.
+          setCurrentUser(null);
+          setFirebaseUser(null);
+          setIsLoading(false);
+        }
       }
-      setIsLoading(false);
     });
 
     return () => unsubscribe();
