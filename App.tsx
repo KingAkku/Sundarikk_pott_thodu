@@ -91,13 +91,20 @@ const App: React.FC = () => {
   const handleScoreUpdate = useCallback(async (score: number) => {
     if (!currentUser) return;
 
+    // Always update local state for UI feedback during the session
+    setCurrentUser(prevUser => prevUser ? { ...prevUser, score: prevUser.score + score } : null);
+
+    // Only persist score to Firestore if the user is not anonymous
+    const isAnonymous = firebaseUser?.isAnonymous === true;
+    if (isAnonymous) {
+      return;
+    }
+
     const userRef = db.collection("users").doc(currentUser.id);
     await userRef.update({
       score: firebase.firestore.FieldValue.increment(score)
     });
-
-    setCurrentUser(prevUser => prevUser ? { ...prevUser, score: prevUser.score + score } : null);
-  }, [currentUser]);
+  }, [currentUser, firebaseUser]);
 
   const handleNewGame = useCallback(() => {
     setGameKey(prevKey => prevKey + 1);
