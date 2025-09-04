@@ -1,11 +1,10 @@
+
 import React, { useState } from 'react';
-// FIX: Import firebase for the User type.
-import firebase from 'firebase/app';
-import 'firebase/auth';
+import type { User } from 'firebase/auth';
+import { sendEmailVerification } from 'firebase/auth';
 
 interface VerifyEmailProps {
-    // FIX: Use firebase.User for v8 compatibility.
-    user: firebase.User | null;
+    user: User | null;
     onSignOut: () => void;
 }
 
@@ -15,8 +14,7 @@ const VerifyEmail: React.FC<VerifyEmailProps> = ({ user, onSignOut }) => {
     const handleResendVerification = async () => {
         if (user) {
             try {
-                // FIX: Use user.sendEmailVerification for v8 compatibility.
-                await user.sendEmailVerification();
+                await sendEmailVerification(user);
                 setMessage('A new verification email has been sent. Please check your inbox.');
             } catch (error: any) {
                 console.error("Error resending verification email:", error);

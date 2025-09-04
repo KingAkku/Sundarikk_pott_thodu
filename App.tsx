@@ -1,8 +1,18 @@
-// FIX: Import firebase and use v8 syntax for auth and firestore to match dependency version.
+
 import React, { useState, useCallback, useEffect } from 'react';
-import firebase from 'firebase/app';
-import 'firebase/auth';
-import 'firebase/firestore';
+import { onAuthStateChanged, signOut, sendEmailVerification, User } from 'firebase/auth';
+import {
+  doc,
+  getDoc,
+  setDoc,
+  collection,
+  query,
+  orderBy,
+  limit,
+  onSnapshot,
+  updateDoc,
+  increment,
+} from 'firebase/firestore';
 import Sidebar from './components/Sidebar';
 import GameCanvas from './components/GameCanvas';
 import Login from './components/Login';
@@ -13,8 +23,7 @@ import FirebaseNotConfigured from './components/FirebaseNotConfigured';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<Player | null>(null);
-  // FIX: User type is now firebase.User.
-  const [firebaseUser, setFirebaseUser] = useState<firebase.User | null>(null);
+  const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [gameKey, setGameKey] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -25,15 +34,13 @@ const App: React.FC = () => {
   }
 
   useEffect(() => {
-    // FIX: Use auth.onAuthStateChanged for v8 compatibility.
-    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setFirebaseUser(user);
-        // FIX: Use v8 firestore syntax.
-        const userRef = db.collection('users').doc(user.uid);
-        const userSnap = await userRef.get();
+        const userRef = doc(db, 'users', user.uid);
+        const userSnap = await getDoc(userRef);
 
-        if (userSnap.exists) {
+        if (userSnap.exists()) {
           setCurrentUser({
             id: user.uid,
             emailVerified: user.emailVerified,
@@ -47,15 +54,13 @@ const App: React.FC = () => {
             score: 0,
             emailVerified: user.emailVerified,
           };
-          // FIX: Use v8 firestore syntax.
-          await userRef.set({ name: newUser.name, score: newUser.score });
+          await setDoc(userRef, { name: newUser.name, score: newUser.score });
           setCurrentUser(newUser);
           
           // Send verification email for new users
           if (!user.emailVerified) {
             try {
-              // FIX: Use user.sendEmailVerification for v8 compatibility.
-              await user.sendEmailVerification();
+              await sendEmailVerification(user);
             } catch (error) {
               console.error("Error sending verification email:", error);
             }
@@ -72,11 +77,10 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // FIX: Use v8 firestore query syntax.
-    const usersCollectionRef = db.collection('users');
-    const q = usersCollectionRef.orderBy('score', 'desc').limit(10);
+    const usersCollectionRef = collection(db, 'users');
+    const q = query(usersCollectionRef, orderBy('score', 'desc'), limit(10));
     
-    const unsubscribe = q.onSnapshot((querySnapshot) => {
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const leaderboardPlayers: Player[] = [];
       querySnapshot.forEach((doc) => {
         leaderboardPlayers.push({ id: doc.id, emailVerified: false, ...doc.data() } as Player);
@@ -90,11 +94,9 @@ const App: React.FC = () => {
   const handleScoreUpdate = useCallback(async (score: number) => {
     if (!currentUser) return;
 
-    // FIX: Use v8 firestore syntax.
-    const userRef = db.collection("users").doc(currentUser.id);
-    await userRef.update({
-      // FIX: Use firebase.firestore.FieldValue.increment for v8 compatibility.
-      score: firebase.firestore.FieldValue.increment(score)
+    const userRef = doc(db, "users", currentUser.id);
+    await updateDoc(userRef, {
+      score: increment(score)
     });
 
     setCurrentUser(prevUser => prevUser ? { ...prevUser, score: prevUser.score + score } : null);
@@ -106,8 +108,7 @@ const App: React.FC = () => {
   
   const handleSignOut = async () => {
     try {
-      // FIX: Use auth.signOut for v8 compatibility.
-      await auth.signOut();
+      await signOut(auth);
       setCurrentUser(null);
     } catch (error) {
       console.error("Error signing out:", error);

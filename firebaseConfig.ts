@@ -1,7 +1,7 @@
-// FIX: Use Firebase v8 compatible imports and initialization to resolve module errors.
-import firebase from "firebase/app";
-import "firebase/auth";
-import "firebase/firestore";
+
+import { initializeApp, getApp, getApps } from "firebase/app";
+import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -14,14 +14,10 @@ const firebaseConfig = {
   measurementId: "G-53SQWMGJMX"
 };
 
-// Initialize Firebase
-if (!firebase.apps.length) {
-  firebase.initializeApp(firebaseConfig);
-}
-
-const auth = firebase.auth();
-const db = firebase.firestore();
-const provider = new firebase.auth.GoogleAuthProvider();
-const app = firebase.app();
+// Initialize Firebase for SSR and SSG, prevent reinitialization on client
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const auth = getAuth(app);
+const db = getFirestore(app);
+const provider = new GoogleAuthProvider();
 
 export { app, auth, db, provider, firebaseConfig };
