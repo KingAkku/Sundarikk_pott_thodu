@@ -1,7 +1,7 @@
 import React from 'react';
 import { Player } from '../types';
 import { auth } from '../firebaseConfig';
-// FIX: Use v8 compat syntax. `signOut` is a method on the auth instance.
+// FIX: The signOut function is not needed from firebase/auth when using the compat library.
 
 interface SidebarProps {
   players: Player[];
@@ -23,7 +23,7 @@ const Sidebar: React.FC<SidebarProps> = ({ players, currentUser, onNewGame }) =>
   const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
 
   const handleSignOut = () => {
-    // FIX: Use v8 compat `auth.signOut` method.
+    // FIX: Use Firebase v8 compat syntax for signOut
     auth.signOut().catch(error => console.error("Sign out error", error));
   };
 

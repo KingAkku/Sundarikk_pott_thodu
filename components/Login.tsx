@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-// FIX: Use v8 compat syntax. `signInWithPopup` is a method on the auth instance.
 import { auth, provider } from '../firebaseConfig';
+// FIX: The signInWithPopup function is not needed from firebase/auth when using the compat library.
 import { seedDatabase } from './DataSeeder';
 
 const GoogleIcon: React.FC = () => (
@@ -18,7 +18,7 @@ const Login: React.FC = () => {
 
   const handleGoogleSignIn = async () => {
     try {
-      // FIX: Use v8 compat `auth.signInWithPopup` method.
+      // FIX: Use Firebase v8 compat syntax for signInWithPopup
       await auth.signInWithPopup(provider);
       // onAuthStateChanged listener in App.tsx will handle the navigation
     } catch (error) {

@@ -1,5 +1,5 @@
 import { db } from '../firebaseConfig';
-// FIX: Use firebase v8 compat syntax.
+// FIX: Use Firebase v8 compat imports to resolve module errors.
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/firestore';
 
@@ -41,7 +41,7 @@ const parseCSV = (csv: string) => {
             if (header === 'score') {
                 value = parseInt(value, 10);
             } else if (header === 'createdAt' || header === 'lastLogin') {
-                // FIX: Use v8 compat Timestamp class.
+                // FIX: Use Firebase v8 compat syntax for Timestamp
                 value = firebase.firestore.Timestamp.fromDate(new Date(value));
             }
             obj[header] = value;
@@ -58,12 +58,12 @@ export const seedDatabase = async () => {
         const players = parseCSV(csvData);
 
         // Using a batch write for efficiency
-        // FIX: Use v8 compat `db.batch()` method.
+        // FIX: Use Firebase v8 compat syntax for writeBatch
         const batch = db.batch();
         
         players.forEach(player => {
             if (player.uid) {
-                // FIX: Use v8 compat `db.collection().doc()` syntax.
+                // FIX: Use Firebase v8 compat syntax for document reference
                 const userRef = db.collection("users").doc(player.uid);
                 batch.set(userRef, player);
             }
