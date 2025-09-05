@@ -1,8 +1,8 @@
 export interface Player {
-  id: string;
+  uid: string;
   name: string;
   score: number;
-  emailVerified: boolean;
+  photoURL?: string;
 }
 
 export interface Click {

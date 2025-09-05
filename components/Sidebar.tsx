@@ -1,5 +1,7 @@
 import React from 'react';
 import { Player } from '../types';
+import { auth } from '../firebaseConfig';
+import { signOut } from 'firebase/auth';
 
 interface SidebarProps {
   players: Player[];
@@ -20,6 +22,10 @@ const TrophyIcon: React.FC<{ rank: number }> = ({ rank }) => {
 const Sidebar: React.FC<SidebarProps> = ({ players, currentUser, onNewGame }) => {
   const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
 
+  const handleSignOut = () => {
+    signOut(auth).catch(error => console.error("Sign out error", error));
+  };
+
   return (
     <aside className="w-80 bg-[#1E1B3A] p-6 flex flex-col shadow-2xl h-full">
       <div className="mb-8">
@@ -29,10 +35,10 @@ const Sidebar: React.FC<SidebarProps> = ({ players, currentUser, onNewGame }) =>
 
       <div className="flex-1 overflow-y-auto pr-2 space-y-3">
         {sortedPlayers.map((player, index) => {
-          const isCurrentUser = player.id === currentUser.id;
+          const isCurrentUser = player.uid === currentUser.uid;
           return (
             <div
-              key={player.id}
+              key={player.uid}
               className={`flex items-center p-3 rounded-lg transition-all duration-300 ${
                 isCurrentUser
                   ? 'bg-[#7F5AF0] shadow-lg scale-105'
@@ -42,6 +48,12 @@ const Sidebar: React.FC<SidebarProps> = ({ players, currentUser, onNewGame }) =>
               <div className="w-8 flex-shrink-0 flex justify-center items-center">
                 <TrophyIcon rank={index} />
               </div>
+              <img 
+                src={player.photoURL || `https://api.dicebear.com/8.x/initials/svg?seed=${player.name}`} 
+                alt={player.name} 
+                className="w-8 h-8 rounded-full ml-3"
+                referrerPolicy="no-referrer"
+              />
               <p className="flex-1 font-semibold text-white truncate ml-3">{player.name}</p>
               <p className="font-bold text-lg text-gray-200">{player.score}</p>
             </div>
@@ -49,12 +61,18 @@ const Sidebar: React.FC<SidebarProps> = ({ players, currentUser, onNewGame }) =>
         })}
       </div>
 
-      <div className="mt-8">
+      <div className="mt-auto pt-8">
         <button
           onClick={onNewGame}
-          className="w-full bg-[#2CB67D] hover:bg-[#259c6b] text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#1E1B3A] focus:ring-[#2CB67D] transition-all duration-300 transform hover:scale-105 shadow-xl"
+          className="w-full bg-[#2CB67D] hover:bg-[#259c6b] text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#1E1B3A] focus:ring-[#2CB67D] transition-all duration-300 transform hover:scale-105 shadow-xl mb-4"
         >
           New Game
+        </button>
+        <button
+          onClick={handleSignOut}
+          className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#1E1B3A] focus:ring-red-500 transition-all duration-300 transform hover:scale-105 shadow-xl"
+        >
+          Sign Out
         </button>
       </div>
     </aside>

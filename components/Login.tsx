@@ -1,9 +1,9 @@
 
-import React, { useState } from 'react';
+import React from 'react';
+import { signInWithPopup } from 'firebase/auth';
+import { auth, provider } from '../firebaseConfig';
 
-interface LoginProps {
-  onLogin: (name: string) => void;
-}
+interface LoginProps {}
 
 const GoogleIcon: React.FC = () => (
     <svg className="w-5 h-5 mr-3" viewBox="0 0 48 48">
@@ -15,13 +15,15 @@ const GoogleIcon: React.FC = () => (
 );
 
 
-const Login: React.FC<LoginProps> = ({ onLogin }) => {
-  const [name, setName] = useState('');
+const Login: React.FC<LoginProps> = () => {
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (name.trim()) {
-      onLogin(name.trim());
+  const handleGoogleSignIn = async () => {
+    try {
+      await signInWithPopup(auth, provider);
+      // onAuthStateChanged listener in App.tsx will handle the navigation
+    } catch (error) {
+      console.error("Authentication error:", error);
+      // Optionally, display an error message to the user
     }
   };
 
@@ -32,32 +34,13 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           <h1 className="text-3xl font-bold text-slate-800 text-center mb-2">Pin the Dot</h1>
           <p className="text-center text-slate-500 mb-8">A game of precision and fun!</p>
           
-          <form onSubmit={handleSubmit}>
-            <div className="mb-6">
-              <label htmlFor="name" className="block text-slate-700 text-sm font-bold mb-2">
-                Enter Your Name
-              </label>
-              <input
-                id="name"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g., Ada Lovelace"
-                className="shadow-inner appearance-none border rounded-lg w-full py-3 px-4 text-slate-700 leading-tight focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow"
-                required
-              />
-            </div>
-            <button
-              type="submit"
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline-indigo transition-all duration-300 transform hover:translate-y-[-2px] flex items-center justify-center shadow-lg"
-            >
-              <GoogleIcon />
-              Sign in with Google
-            </button>
-          </form>
-          <p className="text-center text-xs text-slate-400 mt-6">
-            (This is a simulated sign-in for the game)
-          </p>
+          <button
+            onClick={handleGoogleSignIn}
+            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline-indigo transition-all duration-300 transform hover:translate-y-[-2px] flex items-center justify-center shadow-lg"
+          >
+            <GoogleIcon />
+            Sign in with Google
+          </button>
         </div>
       </div>
     </div>
