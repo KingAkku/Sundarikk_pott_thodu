@@ -7,12 +7,20 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export default defineConfig(({ mode }) => {
-    const env = loadEnv(mode, '.', '');
+    // Load env file based on `mode` in the current working directory.
+    const env = loadEnv(mode, process.cwd(), '');
+
+    // Create a define object for process.env variables to be exposed to the client.
+    // This will automatically expose all variables prefixed with VITE_
+    const processEnv = {};
+    for (const key in env) {
+      if (key.startsWith('VITE_')) {
+        processEnv[`process.env.${key}`] = JSON.stringify(env[key]);
+      }
+    }
+
     return {
-      define: {
-        'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
-      },
+      define: processEnv,
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),

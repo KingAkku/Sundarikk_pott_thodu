@@ -1,12 +1,13 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import GameCanvas from './components/GameCanvas';
 import Login from './components/Login';
 import { Player } from './types';
 import { auth, db } from './firebaseConfig';
-import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, setDoc, onSnapshot, collection, query, orderBy, limit, serverTimestamp, updateDoc, increment, getDoc } from 'firebase/firestore';
+// FIX: Use firebase v8 compat syntax. `onAuthStateChanged` is a method on the auth instance. `User` type will be inferred.
+import firebase from 'firebase/compat/app';
+import 'firebase/compat/firestore';
+
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<Player | null>(null);
@@ -15,37 +16,45 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, async (user: User | null) => {
+    // FIX: Use v8 compat `auth.onAuthStateChanged` method.
+    const unsubscribeAuth = auth.onAuthStateChanged(async (user) => {
       if (user) {
-        const userRef = doc(db, "users", user.uid);
+        // FIX: Use v8 compat Firestore syntax.
+        const userRef = db.collection("users").doc(user.uid);
         
-        const docSnap = await getDoc(userRef);
-        if (!docSnap.exists()) {
-            await setDoc(userRef, {
+        const docSnap = await userRef.get();
+        // FIX: `exists` is a property in v8, not a function.
+        if (!docSnap.exists) {
+            // FIX: Use v8 compat `set` and `FieldValue.serverTimestamp`.
+            await userRef.set({
                 uid: user.uid,
                 name: user.displayName || 'Anonymous',
                 email: user.email,
                 photoURL: user.photoURL,
                 score: 0,
-                createdAt: serverTimestamp(),
-                lastLogin: serverTimestamp(),
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                lastLogin: firebase.firestore.FieldValue.serverTimestamp(),
             });
         } else {
-            await updateDoc(userRef, {
+            // FIX: Use v8 compat `update` and `FieldValue.serverTimestamp`.
+            await userRef.update({
                 name: user.displayName,
                 photoURL: user.photoURL,
-                lastLogin: serverTimestamp(),
+                lastLogin: firebase.firestore.FieldValue.serverTimestamp(),
             });
         }
 
-        const unsubscribeUser = onSnapshot(userRef, (doc) => {
-          if (doc.exists()) {
+        // FIX: Use v8 compat `onSnapshot` method on the document reference.
+        const unsubscribeUser = userRef.onSnapshot((doc) => {
+          if (doc.exists) {
               setCurrentUser(doc.data() as Player);
           }
         });
 
-        const playersQuery = query(collection(db, "users"), orderBy("score", "desc"), limit(10));
-        const unsubscribePlayers = onSnapshot(playersQuery, (snapshot) => {
+        // FIX: Use v8 compat query syntax.
+        const playersQuery = db.collection("users").orderBy("score", "desc").limit(10);
+        // FIX: Use v8 compat `onSnapshot` method on the query.
+        const unsubscribePlayers = playersQuery.onSnapshot((snapshot) => {
             setPlayers(snapshot.docs.map(doc => doc.data() as Player));
         });
         
@@ -67,9 +76,11 @@ const App: React.FC = () => {
 
   const handleScoreUpdate = useCallback(async (score: number) => {
     if (!currentUser) return;
-    const userRef = doc(db, "users", currentUser.uid);
-    await updateDoc(userRef, {
-        score: increment(score)
+    // FIX: Use v8 compat Firestore syntax.
+    const userRef = db.collection("users").doc(currentUser.uid);
+    // FIX: Use v8 compat `update` and `FieldValue.increment`.
+    await userRef.update({
+        score: firebase.firestore.FieldValue.increment(score)
     });
   }, [currentUser]);
 
